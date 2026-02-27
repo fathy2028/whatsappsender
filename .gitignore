@@ -1,0 +1,7 @@
+.vscode
+node_modules
+sender-key-*
+session-*
+pre-key-*
+app-state-*
+*.qr.png

@@ -1,0 +1,13 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+h1,
+p {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: black;
+}
