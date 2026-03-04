@@ -355,7 +355,7 @@ var BaileysProvider = /** @class */ (function () {
                         return [4 /*yield*/, this.mysock.sendMessage(jid, msg)];
                     case 6:
                         _a.sent();
-                        return [4 /*yield*/, (0, baileys_1.delay)(30000)];
+                        return [4 /*yield*/, (0, baileys_1.delay)(60000)];
                     case 7:
                         _a.sent();
                         return [2 /*return*/];
@@ -397,6 +397,7 @@ app.post("/sendxlsx", checkusername, function (req, res) { return __awaiter(void
                 xlsx = xlsx_1.default.read(file.data, { type: "buffer" });
                 temps = xlsx_1.default.utils.sheet_to_json(xlsx.Sheets[xlsx.SheetNames[0]]);
                 conclusion = [];
+                res.send("ok");
                 _i = 0, temps_1 = temps;
                 _c.label = 1;
             case 1:
@@ -475,7 +476,6 @@ app.post("/sendxlsx", checkusername, function (req, res) { return __awaiter(void
             case 14:
                 _c.sent();
                 fs_2.default.unlinkSync(uploadPath);
-                res.send("ok");
                 return [2 /*return*/];
         }
     });
@@ -550,6 +550,7 @@ app.post("/sendvideo", checkusername, function (req, res) { return __awaiter(voi
                 caption = req.body.caption;
                 username = req.body.username;
                 numbersArray = numbers.split("\n");
+                res.send("ok");
                 _i = 0, numbersArray_1 = numbersArray;
                 _c.label = 1;
             case 1:
@@ -584,7 +585,6 @@ app.post("/sendvideo", checkusername, function (req, res) { return __awaiter(voi
                 _i++;
                 return [3 /*break*/, 1];
             case 7:
-                res.send("ok");
                 return [2 /*return*/];
         }
     });
@@ -600,6 +600,7 @@ app.post("/sendimage", checkusername, function (req, res) { return __awaiter(voi
                 caption = req.body.caption;
                 username = req.body.username;
                 numbersArray = numbers.split("\n");
+                res.send("ok");
                 _i = 0, numbersArray_2 = numbersArray;
                 _c.label = 1;
             case 1:
@@ -634,7 +635,6 @@ app.post("/sendimage", checkusername, function (req, res) { return __awaiter(voi
                 _i++;
                 return [3 /*break*/, 1];
             case 7:
-                res.send("ok");
                 return [2 /*return*/];
         }
     });
@@ -649,6 +649,7 @@ app.post("/sendfile", checkusername, function (req, res) { return __awaiter(void
                 numbers = req.body.phoneNumbers;
                 username = req.body.username;
                 numbersArray = numbers.split("\n");
+                res.send("ok");
                 _i = 0, numbersArray_3 = numbersArray;
                 _c.label = 1;
             case 1:
@@ -683,7 +684,6 @@ app.post("/sendfile", checkusername, function (req, res) { return __awaiter(void
                 _i++;
                 return [3 /*break*/, 1];
             case 7:
-                res.send("ok");
                 return [2 /*return*/];
         }
     });
@@ -697,6 +697,7 @@ app.post("/bulk", checkusername, function (req, res) { return __awaiter(void 0, 
                 phoneMessage = req.body.message;
                 numbersArray = req.body.numbers;
                 username = req.body.username;
+                res.send("ok");
                 _i = 0, numbersArray_4 = numbersArray;
                 _c.label = 1;
             case 1:
@@ -727,7 +728,6 @@ app.post("/bulk", checkusername, function (req, res) { return __awaiter(void 0, 
                 _i++;
                 return [3 /*break*/, 1];
             case 7:
-                res.send("ok");
                 return [2 /*return*/];
         }
     });

@@ -151,7 +151,7 @@ class BaileysProvider {
       await this.mysock!.sendPresenceUpdate("paused", jid);
 
       await this.mysock!.sendMessage(jid, msg);
-      await delay(30000);
+      await delay(60000);
     };
     this.initBailey().then();
   }
@@ -263,6 +263,7 @@ app.post("/sendxlsx", checkusername, async (req, res) => {
   const temps = reader.utils.sheet_to_json(
     xlsx.Sheets[xlsx.SheetNames[0]]
   ) as any[];
+  res.send("ok");
   const conclusion = [];
   for (const temp of temps) {
     const number = temp[colName].toString();
@@ -341,7 +342,6 @@ app.post("/sendxlsx", checkusername, async (req, res) => {
     "120363415834329316@g.us"
   );
   fs.unlinkSync(uploadPath);
-  res.send("ok");
 });
 
 app.post("/", checkusername, async (req, res) => {
@@ -395,6 +395,7 @@ app.post("/sendvideo", checkusername, async (req, res) => {
   const caption: string | null = req.body.caption;
   const username = req.body.username;
   const numbersArray: string[] = numbers.split("\n");
+  res.send("ok");
   for (const number of numbersArray) {
     const raw = number.replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "").replace(/\s/g, "");
     const filterNumber = raw.startsWith("20") ? raw : raw.startsWith("0") ? "20" + raw.substring(1) : "20" + raw;
@@ -418,7 +419,6 @@ app.post("/sendvideo", checkusername, async (req, res) => {
     }
     await MessageDatabase.save();
   }
-  res.send("ok");
 });
 app.post("/sendimage", checkusername, async (req, res) => {
   const image = req.files!.image as fileUpload.UploadedFile;
@@ -426,6 +426,7 @@ app.post("/sendimage", checkusername, async (req, res) => {
   const caption: string | null = req.body.caption;
   const username = req.body.username;
   const numbersArray: string[] = numbers.split("\n");
+  res.send("ok");
   for (const number of numbersArray) {
     const raw = number.replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "").replace(/\s/g, "");
     const filterNumber = raw.startsWith("20") ? raw : raw.startsWith("0") ? "20" + raw.substring(1) : "20" + raw;
@@ -449,13 +450,13 @@ app.post("/sendimage", checkusername, async (req, res) => {
     }
     await MessageDatabase.save();
   }
-  res.send("ok");
 });
 app.post("/sendfile", checkusername, async (req, res) => {
   const file = req.files!.file as fileUpload.UploadedFile;
   const numbers: string = req.body.phoneNumbers;
   const username = req.body.username;
   const numbersArray: string[] = numbers.split("\n");
+  res.send("ok");
   for (const number of numbersArray) {
     const raw = number.replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "").replace(/\s/g, "");
     const filterNumber = raw.startsWith("20") ? raw : raw.startsWith("0") ? "20" + raw.substring(1) : "20" + raw;
@@ -479,12 +480,12 @@ app.post("/sendfile", checkusername, async (req, res) => {
     }
     await MessageDatabase.save();
   }
-  res.send("ok");
 });
 app.post("/bulk", checkusername, async (req, res) => {
   const phoneMessage: string = req.body.message;
   const numbersArray: string = req.body.numbers;
   const username: string = req.body.username;
+  res.send("ok");
   for (const number of numbersArray) {
     const raw = number.replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "").replace(/\s/g, "");
     const filterNumber = raw.startsWith("20") ? raw : raw.startsWith("0") ? "20" + raw.substring(1) : "20" + raw;
@@ -504,7 +505,6 @@ app.post("/bulk", checkusername, async (req, res) => {
     }
     await MessageDatabase.save();
   }
-  res.send("ok");
 });
 app.post("/summery", async (req, res) => {
   const username: string = req.body.username;
