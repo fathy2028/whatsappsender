@@ -151,7 +151,7 @@ class BaileysProvider {
       await this.mysock!.sendPresenceUpdate("paused", jid);
 
       await this.mysock!.sendMessage(jid, msg);
-      await delay(2000);
+      await delay(30000);
     };
     this.initBailey().then();
   }

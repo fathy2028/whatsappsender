@@ -19,6 +19,9 @@ import BulkImage from "./pages/BulkImagePage.tsx";
 import BulkFile from "./pages/BulkFilePage.tsx";
 import BulkVideo from "./pages/BulkVideoPage.tsx";
 import BulkExcel from "./pages/BulkExcelPage.tsx";
+import { ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+import theme from "./theme.ts";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -36,11 +39,15 @@ const router = createBrowserRouter(
     </Route>
   )
 );
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-      <ReactQueryDevtools initialIsOpen={false} />
-    </QueryClientProvider>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
+    </ThemeProvider>
   </React.StrictMode>
 );

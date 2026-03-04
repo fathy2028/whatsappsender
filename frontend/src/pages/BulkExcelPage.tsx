@@ -6,7 +6,7 @@ import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Container from "@mui/material/Container";
-import { createTheme, ThemeProvider } from "@mui/material/styles";
+import { ThemeProvider } from "@mui/material/styles";
 import "react-toastify/dist/ReactToastify.css";
 import { toast, ToastContainer } from "react-toastify";
 import { sendXlsx } from "../api/api";
@@ -15,8 +15,7 @@ import { useParams } from "react-router-dom";
 import NavBarComponent from "../components/NavBarComponent";
 import MenuItem from "@mui/material/MenuItem";
 import * as XLSX from "xlsx";
-
-const defaultTheme = createTheme();
+import theme from "../theme";
 
 function BulkExcel() {
   const { username } = useParams();
@@ -59,10 +58,10 @@ function BulkExcel() {
     },
     {
       onSuccess: () => {
-        toast.success("Message Sent!");
+        toast.success("Messages Sent!");
       },
       onError: () => {
-        toast.error("Error!");
+        toast.error("Error sending messages!");
       },
     }
   );
@@ -70,7 +69,7 @@ function BulkExcel() {
   return (
     <>
       <NavBarComponent />
-      <ThemeProvider theme={defaultTheme}>
+      <ThemeProvider theme={theme}>
         <Container component="main" maxWidth="xs">
           <CssBaseline />
           <Box
@@ -82,13 +81,13 @@ function BulkExcel() {
             }}
           >
             <Typography component="h1" variant="h5">
-              Send Message to a Phone Number
+              Send via Excel Sheet
             </Typography>
             <Box
               component="form"
               noValidate
               onSubmit={handleSubmit}
-              sx={{ mt: 3 }}
+              sx={{ mt: 3, width: "100%" }}
             >
               <Grid container spacing={2}>
                 <Grid item xs={12}>
@@ -100,8 +99,13 @@ function BulkExcel() {
                       gap: 1,
                     }}
                   >
-                    <Button variant="contained" component="label">
-                      Upload Excel
+                    <Button
+                      variant="contained"
+                      component="label"
+                      fullWidth
+                      sx={{ py: 1.2, borderRadius: "8px" }}
+                    >
+                      📊 Upload Excel File
                       <input
                         type="file"
                         accept=".xlsx,.xls"
@@ -116,8 +120,8 @@ function BulkExcel() {
                       />
                     </Button>
                     {formData.file && (
-                      <Typography variant="body2" color="text.secondary">
-                        Selected file: {formData.file.name}
+                      <Typography variant="body2" sx={{ color: "rgba(212,175,55,0.7)" }}>
+                        Selected: {formData.file.name}
                       </Typography>
                     )}
                   </Box>
@@ -128,7 +132,7 @@ function BulkExcel() {
                     required
                     fullWidth
                     id="outlined-basic"
-                    label="Phone Number Column Name"
+                    label="Phone Number Column"
                     variant="outlined"
                     name="colname"
                     value={formData.colname}
@@ -149,8 +153,8 @@ function BulkExcel() {
                     select
                     required
                     fullWidth
-                    id="outlined-basic"
-                    label="Message Column Name"
+                    id="outlined-basic-2"
+                    label="Message Column"
                     variant="outlined"
                     name="message"
                     value={formData.message}
@@ -171,9 +175,9 @@ function BulkExcel() {
                 type="submit"
                 fullWidth
                 variant="contained"
-                sx={{ mt: 3, mb: 2 }}
+                sx={{ mt: 3, mb: 2, py: 1.3, borderRadius: "8px" }}
               >
-                Send
+                Send Messages
               </Button>
             </Box>
           </Box>
@@ -188,7 +192,7 @@ function BulkExcel() {
           pauseOnFocusLoss
           draggable
           pauseOnHover
-          theme="light"
+          theme="dark"
         />
       </ThemeProvider>
     </>

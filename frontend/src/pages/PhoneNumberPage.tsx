@@ -6,15 +6,15 @@ import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Container from "@mui/material/Container";
-import { createTheme, ThemeProvider } from "@mui/material/styles";
+import { ThemeProvider } from "@mui/material/styles";
 import "react-toastify/dist/ReactToastify.css";
 import { toast, ToastContainer } from "react-toastify";
 import ReactPhoneInput from "react-phone-input-material-ui";
 import { sendMessageUsingPhoneNumer } from "../api/api";
 import { useMutation } from "react-query";
 import { useParams } from "react-router-dom";
-
-const defaultTheme = createTheme();
+import NavBarComponent from "../components/NavBarComponent";
+import theme from "../theme";
 
 function PhoneNumberPage() {
   const [message, setMessage] = useState<string>("");
@@ -48,7 +48,8 @@ function PhoneNumberPage() {
   );
   return (
     <>
-      <ThemeProvider theme={defaultTheme}>
+      <NavBarComponent />
+      <ThemeProvider theme={theme}>
         <Container component="main" maxWidth="xs">
           <CssBaseline />
           <Box
@@ -66,7 +67,7 @@ function PhoneNumberPage() {
               component="form"
               noValidate
               onSubmit={handleSubmit}
-              sx={{ mt: 3 }}
+              sx={{ mt: 3, width: "100%" }}
             >
               <Grid container spacing={2}>
                 <Grid item xs={12}>
@@ -97,9 +98,9 @@ function PhoneNumberPage() {
                 type="submit"
                 fullWidth
                 variant="contained"
-                sx={{ mt: 3, mb: 2 }}
+                sx={{ mt: 3, mb: 2, py: 1.3, borderRadius: "8px" }}
               >
-                Send
+                Send Message
               </Button>
             </Box>
           </Box>
@@ -114,7 +115,7 @@ function PhoneNumberPage() {
           pauseOnFocusLoss
           draggable
           pauseOnHover
-          theme="light"
+          theme="dark"
         />
       </ThemeProvider>
     </>

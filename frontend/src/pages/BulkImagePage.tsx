@@ -6,15 +6,14 @@ import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Container from "@mui/material/Container";
-import { createTheme, ThemeProvider } from "@mui/material/styles";
+import { ThemeProvider } from "@mui/material/styles";
 import "react-toastify/dist/ReactToastify.css";
 import { toast, ToastContainer } from "react-toastify";
 import { sendImage } from "../api/api";
 import { useMutation } from "react-query";
 import { useParams } from "react-router-dom";
 import NavBarComponent from "../components/NavBarComponent";
-
-const defaultTheme = createTheme();
+import theme from "../theme";
 
 function BulkImage() {
   const { username } = useParams();
@@ -39,7 +38,7 @@ function BulkImage() {
     },
     {
       onSuccess: () => {
-        toast.success("Message Sent!");
+        toast.success("Image Sent!");
       },
       onError: () => {
         toast.error("Phone Number was not found!");
@@ -49,7 +48,7 @@ function BulkImage() {
   return (
     <>
       <NavBarComponent />
-      <ThemeProvider theme={defaultTheme}>
+      <ThemeProvider theme={theme}>
         <Container component="main" maxWidth="xs">
           <CssBaseline />
           <Box
@@ -61,13 +60,13 @@ function BulkImage() {
             }}
           >
             <Typography component="h1" variant="h5">
-              Send Message to a Phone Number
+              Send Bulk Images
             </Typography>
             <Box
               component="form"
               noValidate
               onSubmit={handleSubmit}
-              sx={{ mt: 3 }}
+              sx={{ mt: 3, width: "100%" }}
             >
               <Grid container spacing={2}>
                 <Grid item xs={12}>
@@ -75,7 +74,7 @@ function BulkImage() {
                     required
                     fullWidth
                     id="outlined-multiline-static"
-                    label="Phone Numbers"
+                    label="Phone Numbers (one per line)"
                     name="phoneNumbers"
                     multiline
                     rows={4}
@@ -102,8 +101,8 @@ function BulkImage() {
                   />
                 </Grid>
                 <Grid item xs={12}>
-                  <Button variant="contained" component="label">
-                    Upload Image
+                  <Button variant="contained" component="label" fullWidth sx={{ py: 1.2, borderRadius: "8px" }}>
+                    🖼️ Upload Image
                     <input
                       type="file"
                       accept="image/*"
@@ -116,15 +115,20 @@ function BulkImage() {
                       }}
                     />
                   </Button>
+                  {formData.image && (
+                    <Typography variant="body2" sx={{ mt: 1, color: "rgba(212,175,55,0.7)", textAlign: "center" }}>
+                      Selected: {(formData.image as File).name}
+                    </Typography>
+                  )}
                 </Grid>
               </Grid>
               <Button
                 type="submit"
                 fullWidth
                 variant="contained"
-                sx={{ mt: 3, mb: 2 }}
+                sx={{ mt: 3, mb: 2, py: 1.3, borderRadius: "8px" }}
               >
-                Send
+                Send Images
               </Button>
             </Box>
           </Box>
@@ -139,7 +143,7 @@ function BulkImage() {
           pauseOnFocusLoss
           draggable
           pauseOnHover
-          theme="light"
+          theme="dark"
         />
       </ThemeProvider>
     </>

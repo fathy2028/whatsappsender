@@ -2,11 +2,10 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import "./App.css";
 import Button from "@mui/material/Button";
-import Box from "@mui/material/Box";
-import TextField from "@mui/material/TextField";
 import NavBarComponent from "./components/NavBarComponent";
 import axios from "axios";
 import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
 
 function App() {
   const [username, setUsername] = useState("");
@@ -26,32 +25,46 @@ function App() {
 
   return (
     <>
-      <NavBarComponent></NavBarComponent>
-      <h1>Welcome to Whatsapp API</h1>
-      <Autocomplete
-        freeSolo
-        id="username-autocomplete"
-        options={usernames}
-        value={username}
-        onChange={(_, newValue) => {
-          setUsername(newValue || "");
-        }}
-        onInputChange={(_, newInputValue) => {
-          setUsername(newInputValue);
-        }}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label="Username"
-            variant="outlined"
-            sx={{ width: 300, mb: 2 }}
+      <NavBarComponent />
+      <div className="login-wrapper">
+        <div className="login-card">
+          <div className="app-logo">✉</div>
+          <h1 className="login-title">Fathy Nassef Sender APP</h1>
+          <p className="login-subtitle">WhatsApp Bulk Messaging Platform</p>
+          <div className="gold-divider" />
+          <Autocomplete
+            freeSolo
+            id="username-autocomplete"
+            options={usernames}
+            value={username}
+            onChange={(_, newValue) => {
+              setUsername(newValue || "");
+            }}
+            onInputChange={(_, newInputValue) => {
+              setUsername(newInputValue);
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Username"
+                variant="outlined"
+                fullWidth
+                sx={{ mb: 2.5 }}
+              />
+            )}
           />
-        )}
-      />
-      <Box></Box>
-      <Link to={`scan/${username}`}>
-        <Button variant="contained">Login!</Button>
-      </Link>
+          <Link to={`scan/${username}`} style={{ textDecoration: "none", display: "block" }}>
+            <Button
+              variant="contained"
+              fullWidth
+              size="large"
+              sx={{ py: 1.4, fontSize: "1rem", borderRadius: "8px" }}
+            >
+              Login &amp; Scan QR
+            </Button>
+          </Link>
+        </div>
+      </div>
     </>
   );
 }

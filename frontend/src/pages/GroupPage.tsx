@@ -10,11 +10,11 @@ import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Container from "@mui/material/Container";
-import { createTheme, ThemeProvider } from "@mui/material/styles";
+import { ThemeProvider } from "@mui/material/styles";
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer, toast } from "react-toastify";
-
-const defaultTheme = createTheme();
+import NavBarComponent from "../components/NavBarComponent";
+import theme from "../theme";
 
 function GroupPage() {
   const [group, setGroup] = useState<{ label: string; id: string }>({
@@ -41,11 +41,22 @@ function GroupPage() {
       },
     }
   );
-  if (isLoading) return <h1>Loading</h1>;
-  if (isError) return <h1>Error</h1>;
+  if (isLoading)
+    return (
+      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#1A0800" }}>
+        <Typography sx={{ color: "#D4AF37", fontFamily: "Georgia, serif", fontSize: "1.5rem" }}>Loading...</Typography>
+      </Box>
+    );
+  if (isError)
+    return (
+      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#1A0800" }}>
+        <Typography sx={{ color: "#D4AF37", fontFamily: "Georgia, serif", fontSize: "1.5rem" }}>Error loading groups</Typography>
+      </Box>
+    );
   return (
     <>
-      <ThemeProvider theme={defaultTheme}>
+      <NavBarComponent />
+      <ThemeProvider theme={theme}>
         <Container component="main" maxWidth="xs">
           <CssBaseline />
           <Box
@@ -63,7 +74,7 @@ function GroupPage() {
               component="form"
               noValidate
               onSubmit={handleSubmit}
-              sx={{ mt: 3 }}
+              sx={{ mt: 3, width: "100%" }}
             >
               <Grid container spacing={2}>
                 <Grid item xs={12}>
@@ -99,9 +110,9 @@ function GroupPage() {
                 type="submit"
                 fullWidth
                 variant="contained"
-                sx={{ mt: 3, mb: 2 }}
+                sx={{ mt: 3, mb: 2, py: 1.3, borderRadius: "8px" }}
               >
-                Send
+                Send Message
               </Button>
             </Box>
           </Box>
@@ -116,7 +127,7 @@ function GroupPage() {
           pauseOnFocusLoss
           draggable
           pauseOnHover
-          theme="light"
+          theme="dark"
         />
       </ThemeProvider>
     </>

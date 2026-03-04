@@ -6,15 +6,14 @@ import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Container from "@mui/material/Container";
-import { createTheme, ThemeProvider } from "@mui/material/styles";
+import { ThemeProvider } from "@mui/material/styles";
 import "react-toastify/dist/ReactToastify.css";
 import { toast, ToastContainer } from "react-toastify";
 import { sendMessageUsingPhoneNumers } from "../api/api";
 import { useMutation } from "react-query";
 import { useParams } from "react-router-dom";
 import NavBarComponent from "../components/NavBarComponent";
-
-const defaultTheme = createTheme();
+import theme from "../theme";
 
 function BulkPhoneNumberPage() {
   const [message, setMessage] = useState<string>("");
@@ -49,7 +48,7 @@ function BulkPhoneNumberPage() {
   return (
     <>
       <NavBarComponent />
-      <ThemeProvider theme={defaultTheme}>
+      <ThemeProvider theme={theme}>
         <Container component="main" maxWidth="xs">
           <CssBaseline />
           <Box
@@ -61,13 +60,13 @@ function BulkPhoneNumberPage() {
             }}
           >
             <Typography component="h1" variant="h5">
-              Send Message to a Phone Number
+              Send Bulk Messages
             </Typography>
             <Box
               component="form"
               noValidate
               onSubmit={handleSubmit}
-              sx={{ mt: 3 }}
+              sx={{ mt: 3, width: "100%" }}
             >
               <Grid container spacing={2}>
                 <Grid item xs={12}>
@@ -75,9 +74,9 @@ function BulkPhoneNumberPage() {
                     required
                     fullWidth
                     id="outlined-multiline-static"
-                    label="Phone Numbers"
+                    label="Phone Numbers (one per line)"
                     multiline
-                    rows={4}
+                    rows={5}
                     onChange={(e) => {
                       setPhoneNumbers(e.target.value.split("\n"));
                     }}
@@ -102,9 +101,9 @@ function BulkPhoneNumberPage() {
                 type="submit"
                 fullWidth
                 variant="contained"
-                sx={{ mt: 3, mb: 2 }}
+                sx={{ mt: 3, mb: 2, py: 1.3, borderRadius: "8px" }}
               >
-                Send
+                Send Messages
               </Button>
             </Box>
           </Box>
@@ -119,7 +118,7 @@ function BulkPhoneNumberPage() {
           pauseOnFocusLoss
           draggable
           pauseOnHover
-          theme="light"
+          theme="dark"
         />
       </ThemeProvider>
     </>

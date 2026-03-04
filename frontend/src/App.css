@@ -1,3 +1,13 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #1a0800;
+  min-height: 100vh;
+  margin: 0;
+}
+
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -5,9 +15,65 @@
 }
 
 h1,
-p {
-  font-size: 2rem;
+h2,
+h3 {
+  font-family: "Georgia", "Times New Roman", serif;
   font-weight: 700;
   margin-bottom: 1rem;
-  color: black;
+  color: #d4af37;
+}
+
+p {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  color: #f5e6c8;
+}
+
+.login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, #2d1100 0%, #1a0800 70%);
+  padding: 2rem;
+}
+
+.login-card {
+  background: linear-gradient(145deg, #3e1a00 0%, #2d1100 100%);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 16px;
+  padding: 3rem 2.5rem;
+  box-shadow: 0 8px 40px rgba(212, 175, 55, 0.2);
+  width: 100%;
+  max-width: 420px;
+}
+
+.login-title {
+  font-family: "Georgia", "Times New Roman", serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #d4af37;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 2px 8px rgba(212, 175, 55, 0.4);
+}
+
+.login-subtitle {
+  color: rgba(212, 175, 55, 0.7);
+  font-size: 0.95rem;
+  margin-bottom: 2rem;
+  font-family: "Georgia", serif;
+}
+
+.gold-divider {
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #d4af37, transparent);
+  margin: 0 auto 2rem;
+  border-radius: 2px;
+}
+
+.app-logo {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
 }

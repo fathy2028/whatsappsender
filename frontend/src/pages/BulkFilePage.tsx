@@ -6,15 +6,14 @@ import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Container from "@mui/material/Container";
-import { createTheme, ThemeProvider } from "@mui/material/styles";
+import { ThemeProvider } from "@mui/material/styles";
 import "react-toastify/dist/ReactToastify.css";
 import { toast, ToastContainer } from "react-toastify";
 import { useMutation } from "react-query";
 import { useParams } from "react-router-dom";
 import { sendFile } from "../api/api";
 import NavBarComponent from "../components/NavBarComponent";
-
-const defaultTheme = createTheme();
+import theme from "../theme";
 
 function BulkFile() {
   const { username } = useParams();
@@ -37,7 +36,7 @@ function BulkFile() {
     },
     {
       onSuccess: () => {
-        toast.success("Message Sent!");
+        toast.success("File Sent!");
       },
       onError: () => {
         toast.error("Phone Number was not found!");
@@ -47,7 +46,7 @@ function BulkFile() {
   return (
     <>
       <NavBarComponent />
-      <ThemeProvider theme={defaultTheme}>
+      <ThemeProvider theme={theme}>
         <Container component="main" maxWidth="xs">
           <CssBaseline />
           <Box
@@ -59,13 +58,13 @@ function BulkFile() {
             }}
           >
             <Typography component="h1" variant="h5">
-              Send Message to a Phone Number
+              Send Bulk Files
             </Typography>
             <Box
               component="form"
               noValidate
               onSubmit={handleSubmit}
-              sx={{ mt: 3 }}
+              sx={{ mt: 3, width: "100%" }}
             >
               <Grid container spacing={2}>
                 <Grid item xs={12}>
@@ -73,7 +72,7 @@ function BulkFile() {
                     required
                     fullWidth
                     id="outlined-multiline-static"
-                    label="Phone Numbers"
+                    label="Phone Numbers (one per line)"
                     name="phoneNumbers"
                     multiline
                     rows={4}
@@ -85,8 +84,8 @@ function BulkFile() {
                   />
                 </Grid>
                 <Grid item xs={12}>
-                  <Button variant="contained" component="label">
-                    Upload File
+                  <Button variant="contained" component="label" fullWidth sx={{ py: 1.2, borderRadius: "8px" }}>
+                    📁 Upload File
                     <input
                       type="file"
                       accept="*"
@@ -99,15 +98,20 @@ function BulkFile() {
                       }}
                     />
                   </Button>
+                  {formData.file && (
+                    <Typography variant="body2" sx={{ mt: 1, color: "rgba(212,175,55,0.7)", textAlign: "center" }}>
+                      Selected: {(formData.file as File).name}
+                    </Typography>
+                  )}
                 </Grid>
               </Grid>
               <Button
                 type="submit"
                 fullWidth
                 variant="contained"
-                sx={{ mt: 3, mb: 2 }}
+                sx={{ mt: 3, mb: 2, py: 1.3, borderRadius: "8px" }}
               >
-                Send
+                Send Files
               </Button>
             </Box>
           </Box>
@@ -122,7 +126,7 @@ function BulkFile() {
           pauseOnFocusLoss
           draggable
           pauseOnHover
-          theme="light"
+          theme="dark"
         />
       </ThemeProvider>
     </>
