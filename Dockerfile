@@ -14,8 +14,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install git (required for GitHub-sourced dependency: mysql-baileys)
-RUN apk add --no-cache git
+# Install git + ssh (required for GitHub-sourced dependencies: mysql-baileys, libsignal-node)
+RUN apk add --no-cache git openssh-client
 
 # Install production dependencies only
 COPY package*.json ./
@@ -30,6 +30,6 @@ COPY --from=frontend-builder /frontend/dist ./frontend/dist
 # Directory for temporary file uploads (xlsx, etc.)
 RUN mkdir -p backend/files
 
-EXPOSE 3030
+EXPOSE 4000
 
 CMD ["node", "./backend/index.js"]

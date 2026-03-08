@@ -185,7 +185,7 @@ wss.on("connection", function (ws) {
         }
     });
 });
-var PORT = process.env.PORT || 3000;
+var PORT = process.env.PORT || 4000;
 var qrs = {};
 var baileyGenerateImage = function (base64_1) {
     var args_1 = [];
@@ -355,7 +355,7 @@ var BaileysProvider = /** @class */ (function () {
                         return [4 /*yield*/, this.mysock.sendMessage(jid, msg)];
                     case 6:
                         _a.sent();
-                        return [4 /*yield*/, (0, baileys_1.delay)(60000)];
+                        return [4 /*yield*/, (0, baileys_1.delay)(1000)];
                     case 7:
                         _a.sent();
                         return [2 /*return*/];
@@ -1122,5 +1122,5 @@ app.get("*", function (req, res) {
     return res.sendFile(path_1.default.join(dirname, "/frontend/dist/index.html"));
 });
 server.listen(PORT, function () {
-    console.log("Server is running on port 3000");
+    console.log("Server is running on port " + PORT);
 });

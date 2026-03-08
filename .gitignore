@@ -5,3 +5,4 @@ session-*
 pre-key-*
 app-state-*
 *.qr.png
+.claude
