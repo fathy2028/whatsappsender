@@ -355,7 +355,7 @@ var BaileysProvider = /** @class */ (function () {
                         return [4 /*yield*/, this.mysock.sendMessage(jid, msg)];
                     case 6:
                         _a.sent();
-                        return [4 /*yield*/, (0, baileys_1.delay)(1000)];
+                        return [4 /*yield*/, (0, baileys_1.delay)(60000)];
                     case 7:
                         _a.sent();
                         return [2 /*return*/];
