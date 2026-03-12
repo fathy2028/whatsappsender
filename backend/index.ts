@@ -101,7 +101,7 @@ wss.on("connection", (ws) => {
     }
   });
 });
-const PORT = process.env.PORT || 3030;
+const PORT = process.env.PORT || 4000;
 const qrs: Record<string, string> = {};
 const baileyGenerateImage = async (base64: string, name = "qr.png") => {
   const username = name.replace(".qr.png", "");
@@ -151,7 +151,7 @@ class BaileysProvider {
       await this.mysock!.sendPresenceUpdate("paused", jid);
 
       await this.mysock!.sendMessage(jid, msg);
-      await delay(60000);
+      await delay(1000);
     };
     this.initBailey().then();
   }
