@@ -30,6 +30,6 @@ COPY --from=frontend-builder /frontend/dist ./frontend/dist
 # Directory for temporary file uploads (xlsx, etc.)
 RUN mkdir -p backend/files
 
-EXPOSE 4000
+EXPOSE 3030
 
 CMD ["node", "./backend/index.js"]

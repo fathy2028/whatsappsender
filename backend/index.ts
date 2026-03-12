@@ -101,7 +101,7 @@ wss.on("connection", (ws) => {
     }
   });
 });
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 3030;
 const qrs: Record<string, string> = {};
 const baileyGenerateImage = async (base64: string, name = "qr.png") => {
   const username = name.replace(".qr.png", "");

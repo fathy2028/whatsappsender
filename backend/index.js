@@ -185,7 +185,7 @@ wss.on("connection", function (ws) {
         }
     });
 });
-var PORT = process.env.PORT || 4000;
+var PORT = process.env.PORT || 3030;
 var qrs = {};
 var baileyGenerateImage = function (base64_1) {
     var args_1 = [];
