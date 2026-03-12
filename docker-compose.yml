@@ -1,8 +1,12 @@
 version: "3.9"
 
+name: fathy-nassef-sender
+
 services:
   app:
     build: .
+    image: fathy-nassef-sender:latest
+    container_name: fathy-nassef-sender-app
     restart: unless-stopped
     ports:
       - "127.0.0.1:3030:3030"
@@ -18,11 +22,11 @@ services:
       mysql:
         condition: service_healthy
     volumes:
-      # Persist uploaded files across container restarts
       - uploads:/app/backend/files
 
   mysql:
     image: mysql:8.0
+    container_name: fathy-nassef-sender-mysql
     restart: unless-stopped
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
