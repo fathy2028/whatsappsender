@@ -480,23 +480,33 @@ app.post("/bulk", checkusername, async (req, res) => {
     }
 });
 app.post("/summery", async (req, res) => {
-    const username = req.body.username;
-    const totalMessages = await messageModel_1.default.countDocuments({ username });
-    const uniqueWhatsAppUsers = await messageModel_1.default.distinct("phoneNumber", {
-        username,
-        onWhatsapp: true,
-    });
-    const totalUsersUniqueWhatsAppUsers = uniqueWhatsAppUsers.length;
-    const uniqueNonWhatsAppUsers = await messageModel_1.default.distinct("phoneNumber", {
-        username,
-        onWhatsapp: false,
-    });
-    const totalUsersUniqueNonWhatsAppUsers = uniqueNonWhatsAppUsers.length;
-    return res.send({
-        totalMessages,
-        totalUsersUniqueWhatsAppUsers,
-        totalUsersUniqueNonWhatsAppUsers,
-    });
+    try {
+        const username = req.body.username;
+        const totalMessages = await messageModel_1.default.countDocuments({ username });
+        const uniqueWhatsAppUsers = await messageModel_1.default.distinct("phoneNumber", {
+            username,
+            onWhatsapp: true,
+        });
+        const totalUsersUniqueWhatsAppUsers = uniqueWhatsAppUsers.length;
+        const uniqueNonWhatsAppUsers = await messageModel_1.default.distinct("phoneNumber", {
+            username,
+            onWhatsapp: false,
+        });
+        const totalUsersUniqueNonWhatsAppUsers = uniqueNonWhatsAppUsers.length;
+        return res.send({
+            totalMessages,
+            totalUsersUniqueWhatsAppUsers,
+            totalUsersUniqueNonWhatsAppUsers,
+        });
+    }
+    catch (err) {
+        console.log("Summary error:", err);
+        return res.status(500).json({
+            totalMessages: 0,
+            totalUsersUniqueWhatsAppUsers: 0,
+            totalUsersUniqueNonWhatsAppUsers: 0,
+        });
+    }
 });
 function getUsernames() {
     const connection = mysql2_1.default.createConnection(mysqlConfig);
