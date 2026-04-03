@@ -88,6 +88,22 @@ wss.on("connection", (ws) => {
             type: "authenticated",
           })
         );
+      } else if (bailey[username] && !bailey[username].mysock) {
+        // Connection is still initializing — wait for it and notify when ready
+        const checkInterval = setInterval(() => {
+          if (bailey[username]?.mysock) {
+            clearInterval(checkInterval);
+            if (userConnections[username]?.ws.readyState === WebSocket.OPEN) {
+              userConnections[username].ws.send(
+                JSON.stringify({
+                  type: "authenticated",
+                })
+              );
+            }
+          }
+        }, 1000);
+        // Stop checking after 30 seconds to avoid leaks
+        setTimeout(() => clearInterval(checkInterval), 30000);
       }
     }
   });
@@ -208,7 +224,7 @@ class BaileysProvider {
           if (this.qrRetry >= 3) {
             qrs[this.name as string] = "";
             console.log("socket connection terminated");
-            userConnections[this.name as string].ws.send(
+            userConnections[this.name as string]?.ws.send(
               JSON.stringify({
                 type: "qr-code",
                 message: "Bye",
