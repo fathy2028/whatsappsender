@@ -18,11 +18,32 @@ services:
       - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=whatsapp
       - MYSQL_PORT=3306
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=whatsapp
+      - POSTGRES_PORT=5432
     depends_on:
       mysql:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: fathy-nassef-sender-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=whatsapp
     volumes:
-      - uploads:/app/backend/files
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d whatsapp"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   mysql:
     image: mysql:8.0
@@ -42,4 +63,4 @@ services:
 
 volumes:
   mysql_data:
-  uploads:
+  postgres_data:

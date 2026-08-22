@@ -9,27 +9,33 @@ RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
-# ── Stage 2: Production image ────────────────────────────────────────────────
-FROM node:20-alpine
+# ── Stage 2: Build backend (TypeScript → dist/) ─────────────────────────────
+FROM node:20-alpine AS backend-builder
+
+# git + ssh required for GitHub-sourced dependencies (mysql-baileys)
+RUN apk add --no-cache git openssh-client
 
 WORKDIR /app
 
-# Install git + ssh (required for GitHub-sourced dependencies: mysql-baileys, libsignal-node)
+COPY package*.json ./
+RUN npm ci
+
+COPY backend/ ./backend/
+RUN npx tsc -p backend
+
+# ── Stage 3: Production image ────────────────────────────────────────────────
+FROM node:20-alpine
+
 RUN apk add --no-cache git openssh-client
 
-# Install production dependencies only
+WORKDIR /app
+
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Copy compiled backend (both .js and supporting files)
-COPY backend/ ./backend/
-
-# Copy built frontend from Stage 1
+COPY --from=backend-builder /app/dist ./dist
 COPY --from=frontend-builder /frontend/dist ./frontend/dist
-
-# Directory for temporary file uploads (xlsx, etc.)
-RUN mkdir -p backend/files
 
 EXPOSE 3030
 
-CMD ["node", "./backend/index.js"]
+CMD ["node", "./dist/index.js"]

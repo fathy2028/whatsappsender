@@ -14,8 +14,7 @@ export const sendMessage = async (
   message: string,
   username: string
 ) => {
-  console.log({ id, username, message });
-  const response = await axios.post("/send", { id, username, message });
+  const response = await axios.post("/id", { id, username, message });
   return response.data;
 };
 export const sendMessageUsingPhoneNumer = async (
