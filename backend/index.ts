@@ -18,6 +18,7 @@ import {
   removeConnection,
 } from "./baileys";
 import { normalizePhoneNumber, toJid, isValidUsername } from "./phone";
+import { canSendToday, recordSend, remainingToday } from "./rateLimit";
 import { createJob, finishJob, getJob, getJobs, BulkJob } from "./jobs";
 
 interface IGroup {
@@ -123,7 +124,7 @@ async function logMessage(
   }
 }
 
-type BulkItemStatus = "sent" | "not_on_whatsapp" | "failed";
+type BulkItemStatus = "sent" | "not_on_whatsapp" | "failed" | "limit_reached";
 
 async function sendBulkItem(
   provider: BaileysProvider,
@@ -138,11 +139,15 @@ async function sendBulkItem(
     job.errors.push(`invalid number: ${String(rawNumber)}`);
     return { status: "failed", number: String(rawNumber) };
   }
+  if (!canSendToday(job.username)) {
+    return { status: "limit_reached", number };
+  }
   try {
     const on = await provider.mysock?.onWhatsApp(toJid(number));
     const isOnWhatsapp = !!(on && on.length > 0);
     if (isOnWhatsapp) {
       await provider.sendMessageWTyping(content, toJid(number));
+      recordSend(job.username);
       job.sent++;
     } else {
       job.notOnWhatsapp++;
@@ -157,8 +162,19 @@ async function sendBulkItem(
   }
 }
 
+// Randomized delay so the send cadence doesn't look robotic.
 const delayBetween = async (index: number, total: number): Promise<void> => {
-  if (index < total - 1) await delay(config.messageDelayMs);
+  if (index < total - 1) {
+    const { messageDelayMinMs: min, messageDelayMaxMs: max } = config;
+    await delay(min + Math.random() * Math.max(0, max - min));
+  }
+};
+
+const stopJobAtLimit = (job: BulkJob, remainingItems: number): void => {
+  job.errors.push(
+    `daily limit of ${config.dailyMessageLimit} messages reached — ` +
+      `${remainingItems} numbers were not sent`
+  );
 };
 
 const parseNumbers = (input: unknown): string[] => {
@@ -239,6 +255,10 @@ app.post("/sendxlsx", checkusername, requireSock, async (req, res) => {
         { text },
         text
       );
+      if (result.status === "limit_reached") {
+        stopJobAtLimit(job, rows.length - i);
+        break;
+      }
       if (result.status === "sent") onWhatsapp.push(`+${result.number}`);
       if (result.status === "not_on_whatsapp")
         notOnWhatsapp.push(`+${result.number}`);
@@ -290,7 +310,11 @@ const bulkMediaRoute = (
     const content = buildContent(uploaded, req.body.caption ?? "");
     try {
       for (let i = 0; i < numbers.length; i++) {
-        await sendBulkItem(provider, job, numbers[i], content, dbLabel);
+        const result = await sendBulkItem(provider, job, numbers[i], content, dbLabel);
+        if (result.status === "limit_reached") {
+          stopJobAtLimit(job, numbers.length - i);
+          break;
+        }
         await delayBetween(i, numbers.length);
       }
     } catch (e) {
@@ -342,7 +366,17 @@ app.post("/bulk", checkusername, requireSock, async (req, res) => {
   const provider = bailey[username];
   try {
     for (let i = 0; i < numbers.length; i++) {
-      await sendBulkItem(provider, job, numbers[i], { text: phoneMessage }, phoneMessage);
+      const result = await sendBulkItem(
+        provider,
+        job,
+        numbers[i],
+        { text: phoneMessage },
+        phoneMessage
+      );
+      if (result.status === "limit_reached") {
+        stopJobAtLimit(job, numbers.length - i);
+        break;
+      }
       await delayBetween(i, numbers.length);
     }
   } catch (e) {
@@ -360,6 +394,18 @@ app.get("/jobs/:id", (req, res) => {
   res.json(job);
 });
 
+app.get("/quota/:username", (req, res) => {
+  const username = req.params.username;
+  if (!isValidUsername(username)) {
+    return res.status(400).json({ message: "Invalid username" });
+  }
+  const remaining = remainingToday(username);
+  res.json({
+    dailyLimit: config.dailyMessageLimit,
+    remainingToday: Number.isFinite(remaining) ? remaining : null,
+  });
+});
+
 app.get("/jobs", (req, res) => {
   const username = req.query.username as string | undefined;
   res.json(getJobs(username));
@@ -375,12 +421,18 @@ app.post("/", checkusername, requireSock, async (req, res) => {
       .status(400)
       .json({ message: "phoneNumber and message are required" });
   }
+  if (!canSendToday(username)) {
+    return res.status(429).json({
+      message: `Daily limit of ${config.dailyMessageLimit} messages reached.`,
+    });
+  }
   try {
     const number = normalizePhoneNumber(phoneNumber, false);
     const on = await bailey[username].mysock!.onWhatsApp(toJid(number));
     if (on && on.length > 0) {
       console.log("Sending message to:", number);
       await bailey[username].sendMessageWTyping({ text: message }, toJid(number));
+      recordSend(username);
       await logMessage(username, toJid(number), true, message);
       res.status(200).json({ message: "Message sent." });
     } else {

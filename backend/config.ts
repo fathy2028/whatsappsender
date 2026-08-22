@@ -24,8 +24,15 @@ export const config = {
   },
   // Default country code prepended to local numbers (Egypt).
   countryCode: process.env.COUNTRY_CODE || "20",
-  // Pause between messages in bulk sends, to reduce ban risk.
-  messageDelayMs: parseInt(process.env.MESSAGE_DELAY_MS || "60000", 10),
+  // Randomized pause between messages in bulk sends, to reduce ban risk.
+  // A fixed interval looks robotic; a random one in [min, max] looks human.
+  messageDelayMinMs: parseInt(
+    process.env.MESSAGE_DELAY_MIN_MS || process.env.MESSAGE_DELAY_MS || "60000",
+    10
+  ),
+  messageDelayMaxMs: parseInt(process.env.MESSAGE_DELAY_MAX_MS || "120000", 10),
+  // Max messages per session per calendar day (0 = unlimited).
+  dailyMessageLimit: parseInt(process.env.DAILY_MESSAGE_LIMIT || "200", 10),
   // Optional group JID that receives the xlsx send report. Empty = no report.
   reportGroupId: process.env.REPORT_GROUP_ID || "",
   maxUploadMb: parseInt(process.env.MAX_UPLOAD_MB || "50", 10),
