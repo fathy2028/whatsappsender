@@ -31,8 +31,6 @@ export const config = {
     10
   ),
   messageDelayMaxMs: parseInt(process.env.MESSAGE_DELAY_MAX_MS || "120000", 10),
-  // Max messages per session per calendar day (0 = unlimited).
-  dailyMessageLimit: parseInt(process.env.DAILY_MESSAGE_LIMIT || "200", 10),
   // Optional group JID that receives the xlsx send report. Empty = no report.
   reportGroupId: process.env.REPORT_GROUP_ID || "",
   maxUploadMb: parseInt(process.env.MAX_UPLOAD_MB || "50", 10),
