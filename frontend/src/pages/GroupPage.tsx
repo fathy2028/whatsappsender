@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "react-query";
 import { toast } from "react-toastify";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
-import Autocomplete from "@mui/material/Autocomplete";
 import Divider from "@mui/material/Divider";
 import Skeleton from "@mui/material/Skeleton";
 import Button from "@mui/material/Button";
@@ -15,58 +14,77 @@ import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import PageShell from "../components/PageShell";
 import GlassCard from "../components/GlassCard";
+import RecipientPicker, { type Recipient } from "../components/RecipientPicker";
+import AttachmentsInput from "../components/AttachmentsInput";
+import JobProgress from "../components/JobProgress";
+import { estimateRange } from "../utils/format";
 import SubmitButton from "../components/SubmitButton";
-import { getGroups, sendMessage } from "../api/api";
-import type { Group } from "../api/api";
+import { getGroups, sendCampaign, type Group } from "../api/api";
 import { tokens } from "../theme";
 
-/** WhatsApp allows unnamed groups — give them something selectable. */
-const groupLabel = (g: Group) => g.name || "Untitled group";
+const ACCENT = tokens.rose;
 
 function GroupPage() {
   const { username } = useParams();
-  const [group, setGroup] = useState<Group | null>(null);
+  const [selected, setSelected] = useState<Recipient[]>([]);
   const [message, setMessage] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [jobId, setJobId] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery<Group[]>(
     `groups ${username}`,
     () => getGroups(username!)
   );
 
-  const mutation = useMutation(
-    (payload: { id: string; message: string; username: string }) =>
-      sendMessage(payload.id, payload.message, payload.username),
-    {
-      onSuccess: () => {
-      toast.success("Message posted to the group");
-    },
-      onError: () => {
-      toast.error("Could not post to that group");
-    },
-    }
+  const options: Recipient[] = useMemo(
+    () =>
+      (data ?? []).map((g) => ({
+        id: g.id,
+        name: g.name || "Untitled group",
+        // Group names repeat, so the id is what tells them apart.
+        detail: g.id.replace("@g.us", ""),
+      })),
+    [data]
   );
+
+  const mutation = useMutation(sendCampaign, {
+    onSuccess: (res) => {
+      setJobId(res.jobId);
+      toast.success(`Campaign started for ${selected.length} group(s)`);
+    },
+    onError: () => {
+      toast.error("Could not start the campaign");
+    },
+  });
+
+  const totalSends = selected.length * Math.max(files.length, 1);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!group?.id) {
-      toast.error("Pick a group first");
+    if (selected.length === 0) {
+      toast.error("Pick at least one group");
       return;
     }
-    if (!message.trim()) {
-      toast.error("Write a message first");
+    if (files.length === 0 && !message.trim()) {
+      toast.error("Write a message or attach a file");
       return;
     }
-    mutation.mutate({ id: group.id, message, username: username! });
+    mutation.mutate({
+      username: username!,
+      targets: selected.map((s) => s.id),
+      message,
+      files,
+    });
   };
 
   const shell = (children: React.ReactNode) => (
     <PageShell
-      title="Group Message"
-      subtitle="Post straight into one of the WhatsApp groups this session belongs to."
+      title="Group Campaign"
+      subtitle="Pick any number of groups and send them text, images, video, audio or documents."
       icon={GroupsRoundedIcon}
-      accent={tokens.rose}
+      accent={ACCENT}
       badge="Groups"
-      width={620}
+      width={760}
     >
       {children}
     </PageShell>
@@ -75,11 +93,10 @@ function GroupPage() {
   if (isLoading)
     return shell(
       <GlassCard topAccent>
-        <Skeleton variant="text" width={120} height={20} />
+        <Skeleton variant="text" width={140} height={20} />
         <Skeleton variant="rounded" height={56} sx={{ mt: 1.5, borderRadius: "12px" }} />
         <Divider sx={{ my: 3.4 }} />
-        <Skeleton variant="text" width={100} height={20} />
-        <Skeleton variant="rounded" height={132} sx={{ mt: 1.5, borderRadius: "12px" }} />
+        <Skeleton variant="rounded" height={132} sx={{ borderRadius: "12px" }} />
         <Skeleton variant="rounded" height={52} sx={{ mt: 3, borderRadius: "12px" }} />
       </GlassCard>
     );
@@ -119,112 +136,81 @@ function GroupPage() {
       </GlassCard>
     );
 
-  const groups = Array.isArray(data) ? data : [];
-
   return shell(
     <GlassCard topAccent className="anim-fade-up d-2" component="form" onSubmit={handleSubmit}>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          mb: 1.4,
-          gap: 1,
-        }}
-      >
-        <Typography variant="overline">Destination group</Typography>
-        <Typography sx={{ fontSize: "0.76rem", color: tokens.textMuted }}>
-          {groups.length} available
-        </Typography>
-      </Box>
-
-      <Autocomplete
-        fullWidth
-        options={groups}
-        value={group}
-        isOptionEqualToValue={(a, b) => a.id === b.id}
-        getOptionLabel={groupLabel}
-        onChange={(_, next) => setGroup(next)}
-        renderOption={(props, option) => {
-          return (
-            // `key` after the spread so it wins over any key MUI injects.
-            <Box component="li" {...props} key={option.id}>
-              <Box
-                sx={{
-                  width: 30,
-                  height: 30,
-                  mr: 1.5,
-                  flexShrink: 0,
-                  borderRadius: "9px",
-                  display: "grid",
-                  placeItems: "center",
-                  background: "rgba(244,63,94,.16)",
-                  border: "1px solid rgba(244,63,94,.3)",
-                  color: tokens.rose,
-                  fontSize: "0.78rem",
-                  fontWeight: 700,
-                }}
-              >
-                {(option.name || "#").slice(0, 1).toUpperCase()}
-              </Box>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography
-                  sx={{
-                    fontSize: "0.9rem",
-                    color: option.name ? tokens.textPrimary : tokens.textMuted,
-                    fontStyle: option.name ? "normal" : "italic",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {groupLabel(option)}
-                </Typography>
-                {/* Group names repeat, so show the id to tell them apart. */}
-                <Typography
-                  sx={{
-                    fontFamily: tokens.fontMono,
-                    fontSize: "0.68rem",
-                    color: tokens.textMuted,
-                  }}
-                >
-                  {option.id.replace("@g.us", "")}
-                </Typography>
-              </Box>
-            </Box>
-          );
-        }}
-        renderInput={(params) => (
-          <TextField {...params} required label="Group" placeholder="Search your groups…" />
-        )}
+      <RecipientPicker
+        label={`Groups · ${options.length} available`}
+        options={options}
+        value={selected}
+        onChange={setSelected}
+        accent={ACCENT}
+        placeholder="Search and tick the groups to send to…"
+        emptyText="No groups found for this session"
       />
 
       <Divider sx={{ my: 3.4 }} />
 
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.9, mb: 1.1 }}>
         <ChatBubbleRoundedIcon sx={{ fontSize: "1rem", color: tokens.textMuted }} />
-        <Typography variant="overline">Message</Typography>
+        <Typography variant="overline">
+          {files.length > 0 ? "Caption" : "Message"}
+        </Typography>
       </Box>
       <TextField
-        required
         fullWidth
         multiline
-        rows={5}
+        rows={4}
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        placeholder="Type the message to post in the group…"
+        placeholder={
+          files.length > 0
+            ? "Optional caption sent with each attachment…"
+            : "Type the message to post in the selected groups…"
+        }
       />
       <Typography sx={{ mt: 0.9, fontSize: "0.76rem", color: tokens.textMuted }}>
         {message.length} characters
       </Typography>
 
+      <Divider sx={{ my: 3.4 }} />
+
+      <Typography variant="overline" sx={{ display: "block", mb: 1.4 }}>
+        Attachments
+      </Typography>
+      <AttachmentsInput files={files} onChange={setFiles} accent={ACCENT} />
+
+      {/* ---- send summary ---- */}
+      {totalSends > 0 && (
+        <Box
+          sx={{
+            mt: 3.2,
+            p: 2,
+            borderRadius: "13px",
+            background: `${ACCENT}14`,
+            border: `1px solid ${ACCENT}38`,
+          }}
+        >
+          <Typography sx={{ fontSize: "0.87rem", color: tokens.textSecondary }}>
+            <Box component="span" sx={{ color: ACCENT, fontWeight: 700 }}>
+              {totalSends}
+            </Box>{" "}
+            message{totalSends === 1 ? "" : "s"} total — {Math.max(files.length, 1)} per group ×{" "}
+            {selected.length} group{selected.length === 1 ? "" : "s"}
+          </Typography>
+          <Typography sx={{ mt: 0.6, fontSize: "0.77rem", color: tokens.textMuted }}>
+            Paced 60–120s apart to reduce ban risk — about {estimateRange(totalSends)}.
+          </Typography>
+        </Box>
+      )}
+
       <SubmitButton
         loading={mutation.isLoading}
-        success={mutation.isSuccess}
-        disabled={!group?.id || !message.trim()}
+        disabled={selected.length === 0 || (files.length === 0 && !message.trim())}
       >
-        Post to group
+        Send to {selected.length || 0} group{selected.length === 1 ? "" : "s"}
       </SubmitButton>
+
+      {jobId && <JobProgress jobId={jobId} />}
     </GlassCard>
   );
 }

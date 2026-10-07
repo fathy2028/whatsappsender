@@ -6,6 +6,7 @@ import MovieRoundedIcon from "@mui/icons-material/MovieRounded";
 import TableChartRoundedIcon from "@mui/icons-material/TableChartRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
+import ContactPhoneRoundedIcon from "@mui/icons-material/ContactPhoneRounded";
 
 export type NavItem = {
   label: string;
@@ -75,11 +76,19 @@ export const navItems: NavItem[] = [
     accent: "#34D399",
   },
   {
-    label: "Group Message",
+    label: "Group Campaign",
     short: "Groups",
     path: "group",
     icon: GroupsRoundedIcon,
-    blurb: "Post into one of your WhatsApp groups",
+    blurb: "Pick any groups and send text or any media",
     accent: "#F43F5E",
+  },
+  {
+    label: "Contacts Campaign",
+    short: "Contacts",
+    path: "contacts",
+    icon: ContactPhoneRoundedIcon,
+    blurb: "Tick people from your saved WhatsApp contacts",
+    accent: "#22D3EE",
   },
 ];

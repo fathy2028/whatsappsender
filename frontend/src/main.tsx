@@ -19,6 +19,7 @@ import theme from "./theme.ts";
 import App from "./App.tsx";
 import ScanPage from "./pages/ScanPage.tsx";
 import GroupPage from "./pages/GroupPage.tsx";
+import ContactsPage from "./pages/ContactsPage.tsx";
 import PhoneNumberPage from "./pages/PhoneNumberPage.tsx";
 import BulkPhoneNumberPage from "./pages/BulkPhoneNumberPage.tsx";
 import DashboardPage from "./pages/DashboardPage.tsx";
@@ -37,6 +38,7 @@ const router = createBrowserRouter(
       <Route path="/" element={<App />} />
       <Route path="/scan/:username" element={<ScanPage />} />
       <Route path="/group/:username" element={<GroupPage />} />
+      <Route path="/contacts/:username" element={<ContactsPage />} />
       <Route path="/phone/:username" element={<PhoneNumberPage />} />
       <Route path="/bulk/:username" element={<BulkPhoneNumberPage />} />
       <Route path="/bulkimage/:username" element={<BulkImage />} />

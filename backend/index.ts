@@ -8,7 +8,12 @@ import WebSocket from "ws";
 import http from "http";
 import cors from "cors";
 import mysql from "mysql2";
-import { initDb, insertMessage, getSummary } from "./db";
+import { initDb, insertMessage, getSummary, MessageKind } from "./db";
+import {
+  initContactsTable,
+  listContacts,
+  countContacts,
+} from "./contacts";
 import {
   BaileysProvider,
   bailey,
@@ -82,6 +87,7 @@ async function restoreSessions(): Promise<void> {
 }
 
 initDb();
+initContactsTable();
 restoreSessions();
 
 /* ── WebSocket: QR delivery ─────────────────────────────────────────────── */
@@ -114,10 +120,11 @@ async function logMessage(
   username: string,
   phoneNumber: string,
   onWhatsapp: boolean,
-  message: string
+  message: string,
+  kind: MessageKind = "direct"
 ): Promise<void> {
   try {
-    await insertMessage(username, phoneNumber, onWhatsapp, message);
+    await insertMessage(username, phoneNumber, onWhatsapp, message, kind);
   } catch (e) {
     console.error("Failed to log message to Postgres:", e);
   }
@@ -359,6 +366,201 @@ app.post("/bulk", checkusername, requireSock, async (req, res) => {
     console.error("bulk job error:", e);
   } finally {
     finishJob(job);
+  }
+});
+
+
+/* ── Campaign: any media, to groups or contacts ─────────────────────────── */
+
+/** Build the Baileys content for an upload, chosen by mime type. */
+const contentForUpload = (
+  f: fileUpload.UploadedFile,
+  caption: string
+): { content: AnyMessageContent; label: string } => {
+  const mime = (f.mimetype || "").toLowerCase();
+  if (mime.startsWith("image/")) {
+    return { content: { image: f.data, caption }, label: "Photo" };
+  }
+  if (mime.startsWith("video/")) {
+    return {
+      content: { video: f.data, caption, gifPlayback: false },
+      label: "Video",
+    };
+  }
+  if (mime.startsWith("audio/")) {
+    return {
+      content: { audio: f.data, mimetype: f.mimetype, ptt: false },
+      label: "Audio",
+    };
+  }
+  return {
+    content: { document: f.data, mimetype: f.mimetype, fileName: f.name, caption },
+    label: "File",
+  };
+};
+
+const isGroupJid = (jid: string): boolean => jid.endsWith("@g.us");
+
+/** Accepts a JSON array, a real array, or a newline/comma separated string. */
+const parseTargets = (input: unknown): string[] => {
+  let list: unknown[];
+  if (Array.isArray(input)) {
+    list = input;
+  } else {
+    const raw = String(input ?? "").trim();
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      list = Array.isArray(parsed) ? parsed : [raw];
+    } catch {
+      list = raw.split(/[\n,;]+/);
+    }
+  }
+  const seen = new Set<string>();
+  for (const item of list) {
+    const t = String(item ?? "").trim();
+    if (!t) continue;
+
+    if (isGroupJid(t)) {
+      seen.add(t);
+      continue;
+    }
+
+    // An existing jid already carries a full international number. Running it
+    // through normalizePhoneNumber would prepend the default country code to
+    // any foreign number (966... -> 20966...), so only strip it to digits.
+    if (t.includes("@")) {
+      const digits = t.split("@")[0].split(":")[0].replace(/\D/g, "");
+      if (digits) seen.add(toJid(digits));
+      continue;
+    }
+
+    // A bare number typed by the user: apply the usual local-number rules.
+    const normalized = normalizePhoneNumber(t);
+    if (normalized) seen.add(toJid(normalized));
+  }
+  return [...seen];
+};
+
+/**
+ * Send an optional text plus any number of attachments to any number of
+ * targets (group jids and/or user jids). Responds immediately with a job id;
+ * progress is polled from /jobs/:id.
+ */
+app.post("/campaign", checkusername, requireSock, async (req, res) => {
+  const username: string = req.body.username;
+  const targets = parseTargets(req.body.targets);
+  const message = String(req.body.message ?? "").trim();
+
+  const raw = req.files?.media;
+  const uploads: fileUpload.UploadedFile[] = !raw
+    ? []
+    : Array.isArray(raw)
+    ? raw
+    : [raw];
+
+  if (targets.length === 0) {
+    return res.status(400).send({ message: "targets is required" });
+  }
+  if (uploads.length === 0 && !message) {
+    return res
+      .status(400)
+      .send({ message: "a message or at least one attachment is required" });
+  }
+
+  // One message per attachment, plus one for a caption-less text.
+  const perTarget = uploads.length > 0 ? uploads.length : 1;
+  const job = createJob("campaign", username, targets.length * perTarget);
+  res.send({ status: "ok", jobId: job.id });
+
+  const provider = bailey[username];
+  // Attachments are built once and reused for every target.
+  const parts =
+    uploads.length > 0
+      ? uploads.map((f) => contentForUpload(f, message))
+      : [{ content: { text: message } as AnyMessageContent, label: message }];
+
+  try {
+    let index = 0;
+    const totalSends = targets.length * parts.length;
+
+    for (const target of targets) {
+      const group = isGroupJid(target);
+      const kind: MessageKind = group ? "group" : "direct";
+
+      // Groups can't be checked with onWhatsApp; only verify real numbers.
+      let reachable = true;
+      if (!group) {
+        try {
+          const on = await provider.mysock?.onWhatsApp(target);
+          reachable = !!(on && on.length > 0);
+        } catch {
+          reachable = false;
+        }
+      }
+
+      for (const part of parts) {
+        if (!reachable) {
+          job.notOnWhatsapp++;
+          await logMessage(username, target, false, part.label, kind);
+          index++;
+          continue;
+        }
+        try {
+          await provider.sendMessageWTyping(part.content, target);
+          job.sent++;
+          await logMessage(username, target, true, part.label, kind);
+        } catch (e) {
+          job.failed++;
+          job.errors.push(`${target}: ${String(e)}`);
+          console.error(`campaign send failed for ${target}:`, e);
+        }
+        await delayBetween(index, totalSends);
+        index++;
+      }
+    }
+  } catch (e) {
+    console.error("campaign job error:", e);
+  } finally {
+    finishJob(job);
+  }
+});
+
+/* ── Contacts ───────────────────────────────────────────────────────────── */
+
+app.get("/contacts/:username", async (req, res) => {
+  const username = req.params.username;
+  if (!isValidUsername(username)) {
+    return res.status(400).json({ message: "Invalid username" });
+  }
+  try {
+    const savedOnly = req.query.saved === "1";
+    const [contacts, counts] = await Promise.all([
+      listContacts(username, savedOnly),
+      countContacts(username),
+    ]);
+    res.json({ contacts, ...counts });
+  } catch (err) {
+    console.error("Error listing contacts:", err);
+    res.status(500).json({ message: "Internal server error." });
+  }
+});
+
+/** Ask WhatsApp to re-push the address book for an already-paired session. */
+app.post("/contacts/sync", checkusername, requireSock, async (req, res) => {
+  const username: string = req.body.username;
+  try {
+    await bailey[username].resyncContacts();
+    // The resync resolves before the contacts.upsert events are all handled,
+    // so give them a moment to land before reporting the new count.
+    await delay(2500);
+    const counts = await countContacts(username);
+    res.json({ status: "ok", ...counts });
+  } catch (err) {
+    console.error("Contact resync failed:", err);
+    res
+      .status(500)
+      .json({ message: "Contact sync failed.", error: String(err) });
   }
 });
 

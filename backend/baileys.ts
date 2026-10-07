@@ -11,6 +11,7 @@ import QRCode from "qrcode";
 import WebSocket from "ws";
 import { useMySQLAuthState } from "mysql-baileys";
 import { config } from "./config";
+import { upsertContacts } from "./contacts";
 
 /** Last QR data-url per username, so a page refresh can re-show it. */
 export const qrs: Record<string, string> = {};
@@ -60,6 +61,18 @@ export class BaileysProvider {
     await delay(2000);
     await this.mysock.sendPresenceUpdate("paused", jid);
     await this.mysock.sendMessage(jid, msg);
+  };
+
+  /**
+   * Force WhatsApp to re-push the address book.
+   *
+   * Contacts normally only arrive during the initial sync after pairing, so a
+   * session paired days ago would otherwise have an empty contact list. The
+   * 'critical_unblock_low' app-state collection is the one holding contacts.
+   */
+  resyncContacts = async (): Promise<void> => {
+    if (!this.mysock) throw new Error(`${this.name}: WhatsApp socket not connected`);
+    await this.mysock.resyncAppState(["critical_unblock_low"], false);
   };
 
   initBailey = async (): Promise<void> => {
@@ -126,6 +139,34 @@ export class BaileysProvider {
           }
         } catch (e) {
           console.error(`${this.name}: connection.update handler error:`, e);
+        }
+      });
+
+      /* Contacts: initial sync delivers them here, in bulk. */
+      sock.ev.on("messaging-history.set", async ({ contacts }) => {
+        try {
+          if (!contacts?.length) return;
+          const n = await upsertContacts(this.name, contacts);
+          if (n) console.log(`${this.name}: stored ${n} contacts from history sync`);
+        } catch (e) {
+          console.error(`${this.name}: contact history sync failed:`, e);
+        }
+      });
+
+      /* Contacts: incremental additions and edits after the initial sync. */
+      sock.ev.on("contacts.upsert", async (contacts) => {
+        try {
+          await upsertContacts(this.name, contacts);
+        } catch (e) {
+          console.error(`${this.name}: contacts.upsert failed:`, e);
+        }
+      });
+
+      sock.ev.on("contacts.update", async (contacts) => {
+        try {
+          await upsertContacts(this.name, contacts);
+        } catch (e) {
+          console.error(`${this.name}: contacts.update failed:`, e);
         }
       });
 
