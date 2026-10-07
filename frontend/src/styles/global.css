@@ -1,0 +1,388 @@
+/* ==================================================================
+   Global design layer — Modern SaaS Glass
+   ================================================================== */
+
+:root {
+  --bg: #080b14;
+  --surface: rgba(255, 255, 255, 0.04);
+  --stroke: rgba(255, 255, 255, 0.09);
+  --emerald: #10b981;
+  --cyan: #06b6d4;
+  --violet: #8b5cf6;
+  --text: #e9eef7;
+  --text-dim: #92a0b5;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  overflow-x: hidden;
+  /* static base glow behind the animated aurora */
+  background-image:
+    radial-gradient(900px 500px at 12% -10%, rgba(16, 185, 129, 0.13), transparent 70%),
+    radial-gradient(800px 460px at 88% 6%, rgba(6, 182, 212, 0.11), transparent 70%),
+    radial-gradient(760px 520px at 50% 108%, rgba(139, 92, 246, 0.1), transparent 72%);
+  background-attachment: fixed;
+}
+
+#root {
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+/* ------------------------------------------------------------------
+   Animated aurora backdrop
+   ------------------------------------------------------------------ */
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.aurora__blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.aurora__blob--1 {
+  width: 46vw;
+  height: 46vw;
+  min-width: 380px;
+  min-height: 380px;
+  top: -12vw;
+  left: -8vw;
+  background: radial-gradient(circle at 30% 30%, #10b981, transparent 68%);
+  animation: drift-a 26s ease-in-out infinite;
+}
+
+.aurora__blob--2 {
+  width: 40vw;
+  height: 40vw;
+  min-width: 340px;
+  min-height: 340px;
+  top: -6vw;
+  right: -10vw;
+  background: radial-gradient(circle at 70% 30%, #06b6d4, transparent 68%);
+  animation: drift-b 32s ease-in-out infinite;
+}
+
+.aurora__blob--3 {
+  width: 44vw;
+  height: 44vw;
+  min-width: 360px;
+  min-height: 360px;
+  bottom: -18vw;
+  left: 28vw;
+  background: radial-gradient(circle at 50% 50%, #8b5cf6, transparent 66%);
+  animation: drift-c 38s ease-in-out infinite;
+}
+
+/* fine grid + vignette overlay for depth */
+.aurora__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 85% 70% at 50% 35%, #000 20%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse 85% 70% at 50% 35%, #000 20%, transparent 78%);
+}
+
+.aurora__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 110% 85% at 50% 40%, transparent 42%, rgba(4, 6, 12, 0.82) 100%);
+}
+
+@keyframes drift-a {
+  0%,
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+  33%  { transform: translate3d(9vw, 7vh, 0) scale(1.14); }
+  66%  { transform: translate3d(-4vw, 12vh, 0) scale(0.92); }
+}
+
+@keyframes drift-b {
+  0%,
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+  40%  { transform: translate3d(-11vw, 10vh, 0) scale(1.18); }
+  70%  { transform: translate3d(5vw, 4vh, 0) scale(0.9); }
+}
+
+@keyframes drift-c {
+  0%,
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+  35%  { transform: translate3d(12vw, -9vh, 0) scale(0.88); }
+  68%  { transform: translate3d(-9vw, -5vh, 0) scale(1.16); }
+}
+
+/* ------------------------------------------------------------------
+   Entrance + accent animations
+   ------------------------------------------------------------------ */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pop-in {
+  0%   { opacity: 0; transform: scale(0.94) translateY(10px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.45); }
+  70%  { box-shadow: 0 0 0 14px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes shimmer-text {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes float-soft {
+  0%,
+  100% { transform: translateY(0); }
+  50%  { transform: translateY(-7px); }
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes scan-line {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  12%  { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { transform: translateY(1100%); opacity: 0; }
+}
+
+.anim-fade-up {
+  animation: fade-up 0.62s cubic-bezier(0.22, 0.9, 0.24, 1) both;
+}
+
+.anim-pop {
+  animation: pop-in 0.5s cubic-bezier(0.22, 0.9, 0.24, 1) both;
+}
+
+.anim-float {
+  animation: float-soft 5.5s ease-in-out infinite;
+}
+
+/* stagger helpers */
+.d-1 { animation-delay: 0.06s; }
+.d-2 { animation-delay: 0.12s; }
+.d-3 { animation-delay: 0.18s; }
+.d-4 { animation-delay: 0.24s; }
+.d-5 { animation-delay: 0.3s; }
+.d-6 { animation-delay: 0.36s; }
+.d-7 { animation-delay: 0.42s; }
+.d-8 { animation-delay: 0.48s; }
+
+/* gradient display text */
+.grad-text {
+  background: linear-gradient(110deg, #e9eef7 0%, #34d399 38%, #22d3ee 62%, #e9eef7 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: shimmer-text 7s linear infinite;
+}
+
+/* ------------------------------------------------------------------
+   Scrollbar
+   ------------------------------------------------------------------ */
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-track {
+  background: #070a11;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.55), rgba(6, 182, 212, 0.55));
+  border: 3px solid #070a11;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(52, 211, 153, 0.85), rgba(34, 211, 238, 0.85));
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(16, 185, 129, 0.5) #070a11;
+}
+
+::selection {
+  background: rgba(16, 185, 129, 0.32);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid rgba(52, 211, 153, 0.75);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------
+   react-toastify — glass skin
+   ------------------------------------------------------------------ */
+.Toastify__toast-container {
+  width: auto;
+  min-width: 320px;
+  max-width: 440px;
+}
+
+.Toastify__toast {
+  border-radius: 14px !important;
+  background: rgba(13, 18, 32, 0.9) !important;
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  border: 1px solid var(--stroke) !important;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.55) !important;
+  color: var(--text) !important;
+  font-family: "Inter", system-ui, sans-serif !important;
+  font-size: 0.9rem;
+  padding: 13px 15px;
+}
+
+.Toastify__toast--success {
+  border-color: rgba(16, 185, 129, 0.42) !important;
+}
+
+.Toastify__toast--error {
+  border-color: rgba(244, 63, 94, 0.42) !important;
+}
+
+.Toastify__toast-body {
+  font-weight: 500;
+}
+
+.Toastify__progress-bar--success {
+  background: linear-gradient(90deg, #10b981, #22d3ee) !important;
+}
+
+.Toastify__progress-bar--error {
+  background: linear-gradient(90deg, #f43f5e, #f59e0b) !important;
+}
+
+.Toastify__close-button {
+  color: var(--text-dim);
+  opacity: 0.8;
+}
+
+/* ------------------------------------------------------------------
+   react-phone-input-material-ui — dark glass skin
+   ------------------------------------------------------------------ */
+.react-tel-input {
+  font-family: "Inter", system-ui, sans-serif !important;
+}
+
+.react-tel-input .form-control,
+.react-tel-input .MuiOutlinedInput-root {
+  width: 100% !important;
+}
+
+.react-tel-input .flag-dropdown,
+.react-tel-input .selected-flag {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 12px 0 0 12px !important;
+}
+
+.react-tel-input .selected-flag:hover,
+.react-tel-input .selected-flag:focus,
+.react-tel-input .flag-dropdown.open .selected-flag {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.react-tel-input .country-list {
+  background: rgba(13, 18, 32, 0.96) !important;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--stroke) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6) !important;
+  color: var(--text) !important;
+  margin-top: 8px !important;
+  padding: 6px !important;
+  width: 320px !important;
+}
+
+.react-tel-input .country-list .country {
+  border-radius: 9px;
+  padding: 9px 10px !important;
+  font-size: 0.9rem;
+}
+
+.react-tel-input .country-list .country:hover,
+.react-tel-input .country-list .country.highlight {
+  background: rgba(16, 185, 129, 0.14) !important;
+}
+
+.react-tel-input .country-list .country .dial-code {
+  color: var(--text-dim) !important;
+}
+
+.react-tel-input .country-list .search {
+  background: transparent !important;
+  padding: 8px 8px 10px !important;
+}
+
+.react-tel-input .country-list .search-box {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid var(--stroke) !important;
+  border-radius: 10px !important;
+  color: var(--text) !important;
+  width: 100%;
+  padding: 8px 11px !important;
+  margin: 0 !important;
+}
+
+.react-tel-input .country-list .divider {
+  border-bottom-color: var(--stroke) !important;
+}
+
+/* ------------------------------------------------------------------
+   Accessibility — honour reduced motion
+   ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .aurora__blob {
+    animation: none !important;
+  }
+}

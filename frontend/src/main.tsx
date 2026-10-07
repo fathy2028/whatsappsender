@@ -1,17 +1,24 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App.tsx";
 import {
   createBrowserRouter,
   createRoutesFromElements,
   Route,
   RouterProvider,
 } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "react-query";
+import { ReactQueryDevtools } from "react-query/devtools";
+import { ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+import { ToastContainer } from "react-toastify";
+
+import "react-toastify/dist/ReactToastify.css";
+import "./styles/global.css";
+
+import theme from "./theme.ts";
+import App from "./App.tsx";
 import ScanPage from "./pages/ScanPage.tsx";
 import GroupPage from "./pages/GroupPage.tsx";
-import { QueryClient, QueryClientProvider } from "react-query";
-const queryClient = new QueryClient();
-import { ReactQueryDevtools } from "react-query/devtools";
 import PhoneNumberPage from "./pages/PhoneNumberPage.tsx";
 import BulkPhoneNumberPage from "./pages/BulkPhoneNumberPage.tsx";
 import DashboardPage from "./pages/DashboardPage.tsx";
@@ -19,9 +26,10 @@ import BulkImage from "./pages/BulkImagePage.tsx";
 import BulkFile from "./pages/BulkFilePage.tsx";
 import BulkVideo from "./pages/BulkVideoPage.tsx";
 import BulkExcel from "./pages/BulkExcelPage.tsx";
-import { ThemeProvider } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
-import theme from "./theme.ts";
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },
+});
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -46,6 +54,16 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <CssBaseline />
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
+        <ToastContainer
+          position="bottom-right"
+          autoClose={3200}
+          newestOnTop
+          closeOnClick
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="dark"
+        />
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </ThemeProvider>

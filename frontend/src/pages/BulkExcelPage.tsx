@@ -1,201 +1,267 @@
-import TextField from "@mui/material/TextField";
-import { useState } from "react";
-import Button from "@mui/material/Button";
-import CssBaseline from "@mui/material/CssBaseline";
-import Grid from "@mui/material/Grid";
+import { useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
+import { useMutation } from "react-query";
+import { toast } from "react-toastify";
+import * as XLSX from "xlsx";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import Container from "@mui/material/Container";
-import { ThemeProvider } from "@mui/material/styles";
-import "react-toastify/dist/ReactToastify.css";
-import { toast, ToastContainer } from "react-toastify";
-import { sendXlsx } from "../api/api";
-import { useMutation } from "react-query";
-import { useParams } from "react-router-dom";
-import NavBarComponent from "../components/NavBarComponent";
+import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
-import * as XLSX from "xlsx";
-import theme from "../theme";
+import Divider from "@mui/material/Divider";
+import Chip from "@mui/material/Chip";
+import TableChartRoundedIcon from "@mui/icons-material/TableChartRounded";
+import BackupTableRoundedIcon from "@mui/icons-material/BackupTableRounded";
+import PhoneRoundedIcon from "@mui/icons-material/PhoneRounded";
+import ChatBubbleRoundedIcon from "@mui/icons-material/ChatBubbleRounded";
+import PageShell from "../components/PageShell";
+import GlassCard from "../components/GlassCard";
+import FileDropzone from "../components/FileDropzone";
+import SubmitButton from "../components/SubmitButton";
+import { sendXlsx } from "../api/api";
+import { tokens } from "../theme";
+
+type Row = Record<string, unknown>;
 
 function BulkExcel() {
   const { username } = useParams();
-  const [formData, setFormData] = useState({
-    username: username!,
-    message: "",
-    colname: "",
-    file: null as File | null,
-  });
+  const [file, setFile] = useState<File | null>(null);
   const [columns, setColumns] = useState<string[]>([]);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [colname, setColname] = useState("");
+  const [message, setMessage] = useState("");
 
-  const extractColumns = (file: File) => {
+  /** Read headers + rows locally so we can preview before sending. */
+  const loadWorkbook = (picked: File | null) => {
+    setFile(picked);
+    setColumns([]);
+    setRows([]);
+    setColname("");
+    setMessage("");
+    if (!picked) return;
+
     const reader = new FileReader();
     reader.onload = (e) => {
-      const data = e.target?.result;
-      const workbook = XLSX.read(data, { type: "binary" });
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-      if (jsonData.length > 0) {
-        const headers = jsonData[0] as string[];
+      try {
+        const workbook = XLSX.read(e.target?.result, { type: "binary" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
+        if (!matrix.length) {
+          toast.error("That sheet looks empty");
+          return;
+        }
+        const headers = (matrix[0] as string[]).map((h) => String(h ?? "").trim()).filter(Boolean);
         setColumns(headers);
+        setRows(XLSX.utils.sheet_to_json(sheet) as Row[]);
+      } catch {
+        toast.error("Could not read that spreadsheet");
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsBinaryString(picked);
   };
+
+  const mutation = useMutation((fd: FormData) => sendXlsx(fd), {
+    onSuccess: () => {
+      toast.success(`Campaign queued for ${rows.length} row(s)`);
+    },
+    onError: () => {
+      toast.error("Sending failed — check your columns and session");
+    },
+  });
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData2 = new FormData();
-    formData2.append("username", username!);
-    formData2.append("message", formData.message);
-    formData2.append("colname", formData.colname);
-    formData2.append("file", formData.file!);
-    mutation.mutate(formData2);
+    if (!file) {
+      toast.error("Upload a spreadsheet first");
+      return;
+    }
+    if (!colname || !message) {
+      toast.error("Pick both the number and message columns");
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("username", username!);
+    fd.append("message", message);
+    fd.append("colname", colname);
+    fd.append("file", file);
+    mutation.mutate(fd);
   };
 
-  const mutation = useMutation(
-    (formData3: FormData) => {
-      return sendXlsx(formData3);
-    },
-    {
-      onSuccess: () => {
-        toast.success("Messages Sent!");
-      },
-      onError: () => {
-        toast.error("Error sending messages!");
-      },
-    }
-  );
+  /** First few resolved rows, so the mapping can be sanity-checked. */
+  const preview = useMemo(() => {
+    if (!colname || !message) return [];
+    return rows.slice(0, 3).map((r) => ({
+      number: String(r[colname] ?? "—"),
+      text: String(r[message] ?? "—"),
+    }));
+  }, [rows, colname, message]);
+
+  const ready = Boolean(file && colname && message);
 
   return (
-    <>
-      <NavBarComponent />
-      <ThemeProvider theme={theme}>
-        <Container component="main" maxWidth="xs">
-          <CssBaseline />
+    <PageShell
+      title="Excel Campaign"
+      subtitle="Upload a spreadsheet and map its columns — each recipient gets their own personalised message."
+      icon={TableChartRoundedIcon}
+      accent={tokens.cyanLight}
+      badge="Personalised"
+      width={820}
+    >
+      <GlassCard topAccent className="anim-fade-up d-2" component="form" onSubmit={handleSubmit}>
+        <Typography variant="overline" sx={{ display: "block", mb: 1.4 }}>
+          Spreadsheet
+        </Typography>
+        <FileDropzone
+          accept=".xlsx,.xls,.csv"
+          label="Drop your .xlsx or .csv here"
+          hint="The first sheet is used — its header row becomes your columns"
+          file={file}
+          onFile={loadWorkbook}
+          icon={BackupTableRoundedIcon}
+          accent={tokens.cyanLight}
+        />
+
+        {columns.length > 0 && (
           <Box
-            sx={{
-              marginTop: 8,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
+            className="anim-fade-up"
+            sx={{ mt: 2, display: "flex", gap: 0.8, flexWrap: "wrap", alignItems: "center" }}
+          >
+            <Chip
+              size="small"
+              label={`${rows.length} row${rows.length === 1 ? "" : "s"}`}
+              sx={{
+                color: tokens.emeraldLight,
+                borderColor: "rgba(16,185,129,.4)",
+                background: "rgba(16,185,129,.12)",
+              }}
+            />
+            <Chip
+              size="small"
+              label={`${columns.length} column${columns.length === 1 ? "" : "s"} detected`}
+              sx={{ color: tokens.textSecondary }}
+            />
+          </Box>
+        )}
+
+        <Divider sx={{ my: 3.4 }} />
+
+        {/* ---- column mapping ---- */}
+        <Typography variant="overline" sx={{ display: "block", mb: 1.6 }}>
+          Column mapping
+        </Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+            gap: 2.2,
+          }}
+        >
+          <TextField
+            select
+            required
+            fullWidth
+            label="Phone number column"
+            value={colname}
+            onChange={(e) => setColname(e.target.value)}
+            disabled={!columns.length}
+            helperText={columns.length ? "Must include country codes" : "Upload a file first"}
+            InputProps={{
+              startAdornment: (
+                <PhoneRoundedIcon sx={{ fontSize: "1rem", color: tokens.textMuted, mr: 1 }} />
+              ),
             }}
           >
-            <Typography component="h1" variant="h5">
-              Send via Excel Sheet
+            {columns.map((c) => (
+              <MenuItem key={c} value={c}>
+                {c}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            select
+            required
+            fullWidth
+            label="Message column"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            disabled={!columns.length}
+            helperText={columns.length ? "Per-row message body" : "Upload a file first"}
+            InputProps={{
+              startAdornment: (
+                <ChatBubbleRoundedIcon sx={{ fontSize: "1rem", color: tokens.textMuted, mr: 1 }} />
+              ),
+            }}
+          >
+            {columns.map((c) => (
+              <MenuItem key={c} value={c}>
+                {c}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Box>
+
+        {/* ---- mapping preview ---- */}
+        {preview.length > 0 && (
+          <Box className="anim-fade-up" sx={{ mt: 3.4 }}>
+            <Typography variant="overline" sx={{ display: "block", mb: 1.4 }}>
+              Preview · first {preview.length} row(s)
             </Typography>
             <Box
-              component="form"
-              noValidate
-              onSubmit={handleSubmit}
-              sx={{ mt: 3, width: "100%" }}
+              sx={{
+                borderRadius: "13px",
+                border: `1px solid ${tokens.stroke}`,
+                overflow: "hidden",
+              }}
             >
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <Box
+              {preview.map((p, i) => (
+                <Box
+                  key={i}
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "180px 1fr" },
+                    gap: { xs: 0.4, sm: 2 },
+                    px: 2,
+                    py: 1.5,
+                    borderTop: i === 0 ? "none" : `1px solid ${tokens.stroke}`,
+                    background: i % 2 ? "rgba(255,255,255,.015)" : "transparent",
+                  }}
+                >
+                  <Typography
                     sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 1,
+                      fontFamily: tokens.fontMono,
+                      fontSize: "0.82rem",
+                      color: tokens.emeraldLight,
                     }}
                   >
-                    <Button
-                      variant="contained"
-                      component="label"
-                      fullWidth
-                      sx={{ py: 1.2, borderRadius: "8px" }}
-                    >
-                      📊 Upload Excel File
-                      <input
-                        type="file"
-                        accept=".xlsx,.xls"
-                        name="file"
-                        hidden
-                        onChange={(e) => {
-                          const { name, files } = e.target;
-                          if (files?.length === 0 || !files) return;
-                          setFormData({ ...formData, [name]: files[0] });
-                          extractColumns(files[0]);
-                        }}
-                      />
-                    </Button>
-                    {formData.file && (
-                      <Typography variant="body2" sx={{ color: "rgba(212,175,55,0.7)" }}>
-                        Selected: {formData.file.name}
-                      </Typography>
-                    )}
-                  </Box>
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    select
-                    required
-                    fullWidth
-                    id="outlined-basic"
-                    label="Phone Number Column"
-                    variant="outlined"
-                    name="colname"
-                    value={formData.colname}
-                    onChange={(e) => {
-                      const { name, value } = e.target;
-                      setFormData({ ...formData, [name]: value });
+                    {p.number}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.85rem",
+                      color: tokens.textSecondary,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
                     }}
                   >
-                    {columns.map((column) => (
-                      <MenuItem key={column} value={column}>
-                        {column}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    select
-                    required
-                    fullWidth
-                    id="outlined-basic-2"
-                    label="Message Column"
-                    variant="outlined"
-                    name="message"
-                    value={formData.message}
-                    onChange={(e) => {
-                      const { name, value } = e.target;
-                      setFormData({ ...formData, [name]: value });
-                    }}
-                  >
-                    {columns.map((column) => (
-                      <MenuItem key={column} value={column}>
-                        {column}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Grid>
-              </Grid>
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                sx={{ mt: 3, mb: 2, py: 1.3, borderRadius: "8px" }}
-              >
-                Send Messages
-              </Button>
+                    {p.text}
+                  </Typography>
+                </Box>
+              ))}
             </Box>
           </Box>
-        </Container>
-        <ToastContainer
-          position="bottom-center"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="dark"
-        />
-      </ThemeProvider>
-    </>
+        )}
+
+        <SubmitButton
+          loading={mutation.isLoading}
+          success={mutation.isSuccess}
+          disabled={!ready}
+        >
+          Run campaign{rows.length ? ` · ${rows.length} row(s)` : ""}
+        </SubmitButton>
+      </GlassCard>
+    </PageShell>
   );
 }
 

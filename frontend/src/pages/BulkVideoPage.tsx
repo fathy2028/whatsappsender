@@ -1,152 +1,108 @@
-import TextField from "@mui/material/TextField";
 import { useState } from "react";
-import Button from "@mui/material/Button";
-import CssBaseline from "@mui/material/CssBaseline";
-import Grid from "@mui/material/Grid";
+import { useParams } from "react-router-dom";
+import { useMutation } from "react-query";
+import { toast } from "react-toastify";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import Container from "@mui/material/Container";
-import { ThemeProvider } from "@mui/material/styles";
-import "react-toastify/dist/ReactToastify.css";
-import { toast, ToastContainer } from "react-toastify";
+import TextField from "@mui/material/TextField";
+import Divider from "@mui/material/Divider";
+import MovieRoundedIcon from "@mui/icons-material/MovieRounded";
+import VideoCallRoundedIcon from "@mui/icons-material/VideoCallRounded";
+import PageShell from "../components/PageShell";
+import GlassCard from "../components/GlassCard";
+import NumbersInput from "../components/NumbersInput";
+import { parseNumbers } from "../utils/numbers";
+import FileDropzone from "../components/FileDropzone";
+import SubmitButton from "../components/SubmitButton";
 import { sendVideo } from "../api/api";
-import { useMutation } from "react-query";
-import { useParams } from "react-router-dom";
-import NavBarComponent from "../components/NavBarComponent";
-import theme from "../theme";
+import { tokens } from "../theme";
 
 function BulkVideo() {
   const { username } = useParams();
-  const [formData, setFormData] = useState({
-    username: username!,
-    phoneNumbers: "",
-    caption: "",
-    video: null,
+  const [raw, setRaw] = useState("");
+  const [caption, setCaption] = useState("");
+  const [video, setVideo] = useState<File | null>(null);
+
+  const numbers = parseNumbers(raw);
+
+  const mutation = useMutation((fd: FormData) => sendVideo(fd), {
+    onSuccess: () => {
+      toast.success("Video queued for delivery");
+    },
+    onError: (e) => {
+      toast.error(`Sending failed — ${e}`);
+    },
   });
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData2 = new FormData();
-    formData2.append("username", username!);
-    formData2.append("caption", formData.caption);
-    formData2.append("video", formData.video!);
-    formData2.append("phoneNumbers", formData.phoneNumbers);
-    mutation.mutate(formData2);
-  };
-  const mutation = useMutation(
-    (formData3: FormData) => {
-      return sendVideo(formData3);
-    },
-    {
-      onSuccess: () => {
-        toast.success("Video Sent!");
-      },
-      onError: (e) => {
-        toast.error("Error! " + e);
-      },
+    if (!numbers.length) {
+      toast.error("Add at least one phone number");
+      return;
     }
-  );
+    if (!video) {
+      toast.error("Choose a video to send");
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("username", username!);
+    fd.append("caption", caption);
+    fd.append("video", video);
+    fd.append("phoneNumbers", numbers.join("\n"));
+    mutation.mutate(fd);
+  };
+
   return (
-    <>
-      <NavBarComponent />
-      <ThemeProvider theme={theme}>
-        <Container component="main" maxWidth="xs">
-          <CssBaseline />
-          <Box
-            sx={{
-              marginTop: 8,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <Typography component="h1" variant="h5">
-              Send Bulk Videos
-            </Typography>
-            <Box
-              component="form"
-              noValidate
-              onSubmit={handleSubmit}
-              sx={{ mt: 3, width: "100%" }}
-            >
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <TextField
-                    required
-                    fullWidth
-                    id="outlined-multiline-static"
-                    label="Phone Numbers (one per line)"
-                    name="phoneNumbers"
-                    multiline
-                    rows={4}
-                    onChange={(e) => {
-                      const { name, value } = e.target;
-                      setFormData({ ...formData, [name]: value });
-                    }}
-                    defaultValue={""}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    required
-                    fullWidth
-                    id="outlined-basic"
-                    label="Caption"
-                    variant="outlined"
-                    name="caption"
-                    value={formData.caption}
-                    onChange={(e) => {
-                      const { name, value } = e.target;
-                      setFormData({ ...formData, [name]: value });
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <Button variant="contained" component="label" fullWidth sx={{ py: 1.2, borderRadius: "8px" }}>
-                    🎬 Upload Video
-                    <input
-                      type="file"
-                      accept="video/*"
-                      name="video"
-                      hidden
-                      onChange={(e) => {
-                        const { name, files } = e.target;
-                        if (files?.length === 0 || !files) return;
-                        setFormData({ ...formData, [name]: files[0] });
-                      }}
-                    />
-                  </Button>
-                  {formData.video && (
-                    <Typography variant="body2" sx={{ mt: 1, color: "rgba(212,175,55,0.7)", textAlign: "center" }}>
-                      Selected: {(formData.video as File).name}
-                    </Typography>
-                  )}
-                </Grid>
-              </Grid>
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                sx={{ mt: 3, mb: 2, py: 1.3, borderRadius: "8px" }}
-              >
-                Send Videos
-              </Button>
-            </Box>
-          </Box>
-        </Container>
-        <ToastContainer
-          position="bottom-center"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="dark"
+    <PageShell
+      title="Bulk Video"
+      subtitle="Push a video with an optional caption to every number on your list."
+      icon={MovieRoundedIcon}
+      accent={tokens.amber}
+      badge="Media"
+    >
+      <GlassCard topAccent className="anim-fade-up d-2" component="form" onSubmit={handleSubmit}>
+        <NumbersInput value={raw} onChange={setRaw} rows={5} />
+
+        <Divider sx={{ my: 3.4 }} />
+
+        <Typography variant="overline" sx={{ display: "block", mb: 1.4 }}>
+          Video
+        </Typography>
+        <FileDropzone
+          accept="video/*"
+          label="Drop a video here"
+          hint="MP4 or WebM works best — click to browse"
+          file={video}
+          onFile={setVideo}
+          icon={VideoCallRoundedIcon}
+          accent={tokens.amber}
+          preview="video"
         />
-      </ThemeProvider>
-    </>
+
+        <Box sx={{ mt: 3.4 }}>
+          <Typography variant="overline" sx={{ display: "block", mb: 1.1 }}>
+            Caption
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            placeholder="Optional text shown beneath the video…"
+          />
+        </Box>
+
+        <SubmitButton
+          loading={mutation.isLoading}
+          success={mutation.isSuccess}
+          disabled={!numbers.length || !video}
+        >
+          Send video to {new Set(numbers).size || 0} recipient(s)
+        </SubmitButton>
+      </GlassCard>
+    </PageShell>
   );
 }
 

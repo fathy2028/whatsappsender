@@ -1,124 +1,104 @@
-import TextField from "@mui/material/TextField";
 import { useState } from "react";
-import Button from "@mui/material/Button";
-import CssBaseline from "@mui/material/CssBaseline";
-import Grid from "@mui/material/Grid";
+import { useParams } from "react-router-dom";
+import { useMutation } from "react-query";
+import { toast } from "react-toastify";
+import ReactPhoneInput from "react-phone-input-material-ui";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import Container from "@mui/material/Container";
-import { ThemeProvider } from "@mui/material/styles";
-import "react-toastify/dist/ReactToastify.css";
-import { toast, ToastContainer } from "react-toastify";
-import ReactPhoneInput from "react-phone-input-material-ui";
+import TextField from "@mui/material/TextField";
+import Divider from "@mui/material/Divider";
+import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
+import ChatBubbleRoundedIcon from "@mui/icons-material/ChatBubbleRounded";
+import PageShell from "../components/PageShell";
+import GlassCard from "../components/GlassCard";
+import SubmitButton from "../components/SubmitButton";
 import { sendMessageUsingPhoneNumer } from "../api/api";
-import { useMutation } from "react-query";
-import { useParams } from "react-router-dom";
-import NavBarComponent from "../components/NavBarComponent";
-import theme from "../theme";
+import { tokens } from "../theme";
 
 function PhoneNumberPage() {
-  const [message, setMessage] = useState<string>("");
-  const [phoneNumber, setPhoneNumber] = useState<string>("");
   const { username } = useParams();
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    mutation.mutate({
-      phoneNumber,
-      message,
-      username: username!,
-    });
-  };
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [message, setMessage] = useState("");
+
   const mutation = useMutation(
-    (submitData: {
-      phoneNumber: string;
-      message: string;
-      username: string;
-    }) => {
-      const { phoneNumber, message, username } = submitData;
-      return sendMessageUsingPhoneNumer(phoneNumber, message, username);
-    },
+    (payload: { phoneNumber: string; message: string; username: string }) =>
+      sendMessageUsingPhoneNumer(payload.phoneNumber, payload.message, payload.username),
     {
       onSuccess: () => {
-        toast.success("Message Sent!");
-      },
+      toast.success("Message sent");
+    },
       onError: () => {
-        toast.error("Phone Number was not found!");
-      },
+      toast.error("That number isn’t reachable on WhatsApp");
+    },
     }
   );
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!phoneNumber.trim()) {
+      toast.error("Enter a phone number");
+      return;
+    }
+    if (!message.trim()) {
+      toast.error("Write a message first");
+      return;
+    }
+    mutation.mutate({ phoneNumber, message, username: username! });
+  };
+
   return (
-    <>
-      <NavBarComponent />
-      <ThemeProvider theme={theme}>
-        <Container component="main" maxWidth="xs">
-          <CssBaseline />
-          <Box
-            sx={{
-              marginTop: 8,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <Typography component="h1" variant="h5">
-              Send Message to a Phone Number
-            </Typography>
-            <Box
-              component="form"
-              noValidate
-              onSubmit={handleSubmit}
-              sx={{ mt: 3, width: "100%" }}
-            >
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <ReactPhoneInput
-                    value={phoneNumber}
-                    onChange={(e) => {
-                      setPhoneNumber(e);
-                    }}
-                    country={"eg"}
-                    component={TextField}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    required
-                    fullWidth
-                    id="outlined-basic"
-                    label="Message"
-                    variant="outlined"
-                    value={message}
-                    onChange={(e) => {
-                      setMessage(e.target.value);
-                    }}
-                  />
-                </Grid>
-              </Grid>
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                sx={{ mt: 3, mb: 2, py: 1.3, borderRadius: "8px" }}
-              >
-                Send Message
-              </Button>
-            </Box>
-          </Box>
-        </Container>
-        <ToastContainer
-          position="bottom-center"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="dark"
+    <PageShell
+      title="Single Message"
+      subtitle="Send a one-off WhatsApp message to a single number — handy for testing a template."
+      icon={PersonRoundedIcon}
+      accent={tokens.emeraldLight}
+      badge="Direct"
+      width={620}
+    >
+      <GlassCard topAccent className="anim-fade-up d-2" component="form" onSubmit={handleSubmit}>
+        <Typography variant="overline" sx={{ display: "block", mb: 1.4 }}>
+          Recipient
+        </Typography>
+        <ReactPhoneInput
+          value={phoneNumber}
+          onChange={(v: string) => setPhoneNumber(v)}
+          country={"eg"}
+          enableSearch
+          component={TextField}
+          containerStyle={{ width: "100%" }}
         />
-      </ThemeProvider>
-    </>
+        <Typography sx={{ mt: 1, fontSize: "0.76rem", color: tokens.textMuted }}>
+          Pick the country, then type the local number.
+        </Typography>
+
+        <Divider sx={{ my: 3.4 }} />
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.9, mb: 1.1 }}>
+          <ChatBubbleRoundedIcon sx={{ fontSize: "1rem", color: tokens.textMuted }} />
+          <Typography variant="overline">Message</Typography>
+        </Box>
+        <TextField
+          required
+          fullWidth
+          multiline
+          rows={5}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Type your message…"
+        />
+        <Typography sx={{ mt: 0.9, fontSize: "0.76rem", color: tokens.textMuted }}>
+          {message.length} characters
+        </Typography>
+
+        <SubmitButton
+          loading={mutation.isLoading}
+          success={mutation.isSuccess}
+          disabled={!phoneNumber.trim() || !message.trim()}
+        >
+          Send message
+        </SubmitButton>
+      </GlassCard>
+    </PageShell>
   );
 }
 

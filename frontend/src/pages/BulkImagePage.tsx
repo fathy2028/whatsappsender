@@ -1,152 +1,108 @@
-import TextField from "@mui/material/TextField";
 import { useState } from "react";
-import Button from "@mui/material/Button";
-import CssBaseline from "@mui/material/CssBaseline";
-import Grid from "@mui/material/Grid";
+import { useParams } from "react-router-dom";
+import { useMutation } from "react-query";
+import { toast } from "react-toastify";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import Container from "@mui/material/Container";
-import { ThemeProvider } from "@mui/material/styles";
-import "react-toastify/dist/ReactToastify.css";
-import { toast, ToastContainer } from "react-toastify";
+import TextField from "@mui/material/TextField";
+import Divider from "@mui/material/Divider";
+import ImageRoundedIcon from "@mui/icons-material/ImageRounded";
+import AddPhotoAlternateRoundedIcon from "@mui/icons-material/AddPhotoAlternateRounded";
+import PageShell from "../components/PageShell";
+import GlassCard from "../components/GlassCard";
+import NumbersInput from "../components/NumbersInput";
+import { parseNumbers } from "../utils/numbers";
+import FileDropzone from "../components/FileDropzone";
+import SubmitButton from "../components/SubmitButton";
 import { sendImage } from "../api/api";
-import { useMutation } from "react-query";
-import { useParams } from "react-router-dom";
-import NavBarComponent from "../components/NavBarComponent";
-import theme from "../theme";
+import { tokens } from "../theme";
 
 function BulkImage() {
   const { username } = useParams();
-  const [formData, setFormData] = useState({
-    username: username!,
-    phoneNumbers: "",
-    caption: "",
-    image: null,
+  const [raw, setRaw] = useState("");
+  const [caption, setCaption] = useState("");
+  const [image, setImage] = useState<File | null>(null);
+
+  const numbers = parseNumbers(raw);
+
+  const mutation = useMutation((fd: FormData) => sendImage(fd), {
+    onSuccess: () => {
+      toast.success("Image queued for delivery");
+    },
+    onError: () => {
+      toast.error("Sending failed — check the numbers and your session");
+    },
   });
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData2 = new FormData();
-    formData2.append("username", username!);
-    formData2.append("caption", formData.caption);
-    formData2.append("image", formData.image!);
-    formData2.append("phoneNumbers", formData.phoneNumbers);
-    mutation.mutate(formData2);
-  };
-  const mutation = useMutation(
-    (formData3: FormData) => {
-      return sendImage(formData3);
-    },
-    {
-      onSuccess: () => {
-        toast.success("Image Sent!");
-      },
-      onError: () => {
-        toast.error("Phone Number was not found!");
-      },
+    if (!numbers.length) {
+      toast.error("Add at least one phone number");
+      return;
     }
-  );
+    if (!image) {
+      toast.error("Choose an image to send");
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("username", username!);
+    fd.append("caption", caption);
+    fd.append("image", image);
+    fd.append("phoneNumbers", numbers.join("\n"));
+    mutation.mutate(fd);
+  };
+
   return (
-    <>
-      <NavBarComponent />
-      <ThemeProvider theme={theme}>
-        <Container component="main" maxWidth="xs">
-          <CssBaseline />
-          <Box
-            sx={{
-              marginTop: 8,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <Typography component="h1" variant="h5">
-              Send Bulk Images
-            </Typography>
-            <Box
-              component="form"
-              noValidate
-              onSubmit={handleSubmit}
-              sx={{ mt: 3, width: "100%" }}
-            >
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <TextField
-                    required
-                    fullWidth
-                    id="outlined-multiline-static"
-                    label="Phone Numbers (one per line)"
-                    name="phoneNumbers"
-                    multiline
-                    rows={4}
-                    onChange={(e) => {
-                      const { name, value } = e.target;
-                      setFormData({ ...formData, [name]: value });
-                    }}
-                    defaultValue={""}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    required
-                    fullWidth
-                    id="outlined-basic"
-                    label="Caption"
-                    variant="outlined"
-                    name="caption"
-                    value={formData.caption}
-                    onChange={(e) => {
-                      const { name, value } = e.target;
-                      setFormData({ ...formData, [name]: value });
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <Button variant="contained" component="label" fullWidth sx={{ py: 1.2, borderRadius: "8px" }}>
-                    🖼️ Upload Image
-                    <input
-                      type="file"
-                      accept="image/*"
-                      name="image"
-                      hidden
-                      onChange={(e) => {
-                        const { name, files } = e.target;
-                        if (files?.length === 0 || !files) return;
-                        setFormData({ ...formData, [name]: files[0] });
-                      }}
-                    />
-                  </Button>
-                  {formData.image && (
-                    <Typography variant="body2" sx={{ mt: 1, color: "rgba(212,175,55,0.7)", textAlign: "center" }}>
-                      Selected: {(formData.image as File).name}
-                    </Typography>
-                  )}
-                </Grid>
-              </Grid>
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                sx={{ mt: 3, mb: 2, py: 1.3, borderRadius: "8px" }}
-              >
-                Send Images
-              </Button>
-            </Box>
-          </Box>
-        </Container>
-        <ToastContainer
-          position="bottom-center"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="dark"
+    <PageShell
+      title="Bulk Images"
+      subtitle="Attach one image and a shared caption, then deliver it across your recipient list."
+      icon={ImageRoundedIcon}
+      accent={tokens.cyan}
+      badge="Media"
+    >
+      <GlassCard topAccent className="anim-fade-up d-2" component="form" onSubmit={handleSubmit}>
+        <NumbersInput value={raw} onChange={setRaw} rows={5} />
+
+        <Divider sx={{ my: 3.4 }} />
+
+        <Typography variant="overline" sx={{ display: "block", mb: 1.4 }}>
+          Image
+        </Typography>
+        <FileDropzone
+          accept="image/*"
+          label="Drop an image here"
+          hint="PNG, JPG, GIF or WebP — click to browse"
+          file={image}
+          onFile={setImage}
+          icon={AddPhotoAlternateRoundedIcon}
+          accent={tokens.cyan}
+          preview="image"
         />
-      </ThemeProvider>
-    </>
+
+        <Box sx={{ mt: 3.4 }}>
+          <Typography variant="overline" sx={{ display: "block", mb: 1.1 }}>
+            Caption
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            placeholder="Optional text shown beneath the image…"
+          />
+        </Box>
+
+        <SubmitButton
+          loading={mutation.isLoading}
+          success={mutation.isSuccess}
+          disabled={!numbers.length || !image}
+        >
+          Send image to {new Set(numbers).size || 0} recipient(s)
+        </SubmitButton>
+      </GlassCard>
+    </PageShell>
   );
 }
 
