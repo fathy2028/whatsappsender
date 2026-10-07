@@ -17,9 +17,11 @@ import PageShell from "../components/PageShell";
 import GlassCard from "../components/GlassCard";
 import SubmitButton from "../components/SubmitButton";
 import { getGroups, sendMessage } from "../api/api";
+import type { Group } from "../api/api";
 import { tokens } from "../theme";
 
-type Group = { label: string; id: string };
+/** WhatsApp allows unnamed groups — give them something selectable. */
+const groupLabel = (g: Group) => g.name || "Untitled group";
 
 function GroupPage() {
   const { username } = useParams();
@@ -141,8 +143,57 @@ function GroupPage() {
         options={groups}
         value={group}
         isOptionEqualToValue={(a, b) => a.id === b.id}
-        getOptionLabel={(o) => o.label ?? ""}
+        getOptionLabel={groupLabel}
         onChange={(_, next) => setGroup(next)}
+        renderOption={(props, option) => {
+          return (
+            // `key` after the spread so it wins over any key MUI injects.
+            <Box component="li" {...props} key={option.id}>
+              <Box
+                sx={{
+                  width: 30,
+                  height: 30,
+                  mr: 1.5,
+                  flexShrink: 0,
+                  borderRadius: "9px",
+                  display: "grid",
+                  placeItems: "center",
+                  background: "rgba(244,63,94,.16)",
+                  border: "1px solid rgba(244,63,94,.3)",
+                  color: tokens.rose,
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                }}
+              >
+                {(option.name || "#").slice(0, 1).toUpperCase()}
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  sx={{
+                    fontSize: "0.9rem",
+                    color: option.name ? tokens.textPrimary : tokens.textMuted,
+                    fontStyle: option.name ? "normal" : "italic",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {groupLabel(option)}
+                </Typography>
+                {/* Group names repeat, so show the id to tell them apart. */}
+                <Typography
+                  sx={{
+                    fontFamily: tokens.fontMono,
+                    fontSize: "0.68rem",
+                    color: tokens.textMuted,
+                  }}
+                >
+                  {option.id.replace("@g.us", "")}
+                </Typography>
+              </Box>
+            </Box>
+          );
+        }}
         renderInput={(params) => (
           <TextField {...params} required label="Group" placeholder="Search your groups…" />
         )}

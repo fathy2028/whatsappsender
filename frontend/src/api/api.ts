@@ -4,10 +4,19 @@ export const getUsernames = async () => {
   const response = await axios.get("/usernames");
   return response.data;
 };
-export const getGroups = async (username: string) => {
+/** A WhatsApp group as returned by `GET /getgroups/:username`. */
+export type Group = { name: string; id: string };
+
+export const getGroups = async (username: string): Promise<Group[]> => {
   const response = await axios.get(`/getgroups/${username}`);
-  console.log(response);
-  return response.data;
+  if (!Array.isArray(response.data)) return [];
+  return response.data
+    .map((g): Group => ({
+      // The backend sends { name, id }; tolerate a legacy { label, id } too.
+      name: String(g?.name ?? g?.label ?? "").trim(),
+      id: String(g?.id ?? ""),
+    }))
+    .filter((g) => g.id);
 };
 export const sendMessage = async (
   id: string,
