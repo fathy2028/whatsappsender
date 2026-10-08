@@ -126,7 +126,7 @@ export const getContacts = async (
   username: string,
   savedOnly = false
 ): Promise<{ contacts: Contact[]; total: number; saved: number }> => {
-  const response = await axios.get(`/contacts/${username}`, {
+  const response = await axios.get(`/api/contacts/${username}`, {
     params: savedOnly ? { saved: "1" } : undefined,
   });
   const data = response.data ?? {};
@@ -141,6 +141,6 @@ export const getContacts = async (
 export const syncContacts = async (
   username: string
 ): Promise<{ total: number; saved: number }> => {
-  const response = await axios.post("/contacts/sync", { username });
+  const response = await axios.post("/api/contacts/sync", { username });
   return { total: Number(response.data?.total) || 0, saved: Number(response.data?.saved) || 0 };
 };

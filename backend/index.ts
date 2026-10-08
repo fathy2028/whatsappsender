@@ -528,7 +528,9 @@ app.post("/campaign", checkusername, requireSock, async (req, res) => {
 
 /* ── Contacts ───────────────────────────────────────────────────────────── */
 
-app.get("/contacts/:username", async (req, res) => {
+// Namespaced under /api so it does not shadow the SPA page route
+// of the same path (/contacts/:username).
+app.get("/api/contacts/:username", async (req, res) => {
   const username = req.params.username;
   if (!isValidUsername(username)) {
     return res.status(400).json({ message: "Invalid username" });
@@ -547,7 +549,7 @@ app.get("/contacts/:username", async (req, res) => {
 });
 
 /** Ask WhatsApp to re-push the address book for an already-paired session. */
-app.post("/contacts/sync", checkusername, requireSock, async (req, res) => {
+app.post("/api/contacts/sync", checkusername, requireSock, async (req, res) => {
   const username: string = req.body.username;
   try {
     await bailey[username].resyncContacts();
