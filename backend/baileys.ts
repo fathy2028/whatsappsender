@@ -12,6 +12,7 @@ import WebSocket from "ws";
 import { useMySQLAuthState } from "mysql-baileys";
 import { config } from "./config";
 import { upsertContacts } from "./contacts";
+import { withWorkingAppStateKeys } from "./authFix";
 
 /** Last QR data-url per username, so a page refresh can re-show it. */
 export const qrs: Record<string, string> = {};
@@ -66,12 +67,22 @@ export class BaileysProvider {
   /**
    * Force WhatsApp to re-push the address book.
    *
-   * Contacts normally only arrive during the initial sync after pairing, so a
-   * session paired days ago would otherwise have an empty contact list. The
-   * 'critical_unblock_low' app-state collection is the one holding contacts.
+   * Contacts live in the 'critical_unblock_low' app-state collection. A plain
+   * resync only asks for mutations *since* the stored sync version, so a
+   * session that synced long ago receives an empty delta and no contacts.
+   * WhatsApp only returns a full snapshot when the requested version is 0
+   * (see `return_snapshot` in Baileys' resyncAppState), so clearing the stored
+   * version first is what forces the whole address book to be re-sent. This is
+   * the same reset Baileys itself performs when a patch fails to apply.
    */
-  resyncContacts = async (): Promise<void> => {
+  resyncContacts = async (full = true): Promise<void> => {
     if (!this.mysock) throw new Error(`${this.name}: WhatsApp socket not connected`);
+    if (full) {
+      await this.mysock.authState.keys.set({
+        "app-state-sync-version": { critical_unblock_low: null },
+      });
+      console.log(`${this.name}: cleared contact sync version, requesting snapshot`);
+    }
     await this.mysock.resyncAppState(["critical_unblock_low"], false);
   };
 
@@ -81,6 +92,9 @@ export class BaileysProvider {
       session: this.name,
     });
     this.removeCredsGlobal = removeCreds;
+    // mysql-baileys returns a zero-filled app-state-sync-key, which makes every
+    // contact/app-state snapshot fail to decrypt. See authFix.ts.
+    withWorkingAppStateKeys(state.keys, this.name);
     try {
       const { version } = await fetchLatestBaileysVersion();
       const sock = makeWASocket({
@@ -92,7 +106,7 @@ export class BaileysProvider {
         markOnlineOnConnect: false,
         syncFullHistory: false,
         //@ts-ignore pino version mismatch between baileys and this project
-        logger: pino({ level: "fatal" }),
+        logger: pino({ level: config.baileysLogLevel }),
       });
 
       sock.ev.on("connection.update", async (update) => {
@@ -156,7 +170,8 @@ export class BaileysProvider {
       /* Contacts: incremental additions and edits after the initial sync. */
       sock.ev.on("contacts.upsert", async (contacts) => {
         try {
-          await upsertContacts(this.name, contacts);
+          const n = await upsertContacts(this.name, contacts);
+          if (n) console.log(`${this.name}: +${n} contact(s)`);
         } catch (e) {
           console.error(`${this.name}: contacts.upsert failed:`, e);
         }

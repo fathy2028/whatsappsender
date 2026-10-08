@@ -69,9 +69,18 @@ export async function upsertContacts(
 ): Promise<number> {
   const rows = contacts
     .map((c) => {
-      const jid = c.phoneNumber || c.id || "";
-      if (!jid.includes("@s.whatsapp.net")) return null;
-      const number = jidToNumber(jid);
+      // pnJid is the real phone-number jid; `id` may instead be a @lid, which
+      // cannot be messaged, so fall back to it only when it is a user jid.
+      const candidate =
+        c.phoneNumber ||
+        (c.id && !c.id.includes("@lid") ? c.id : "") ||
+        "";
+      if (!candidate) return null;
+      // Accept "<num>@s.whatsapp.net", legacy "<num>@c.us", or bare digits.
+      if (candidate.includes("@") && !/@(s\.whatsapp\.net|c\.us)$/.test(candidate)) {
+        return null;
+      }
+      const number = jidToNumber(candidate);
       if (!number) return null;
       return {
         jid: `${number}@s.whatsapp.net`,

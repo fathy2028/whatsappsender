@@ -34,4 +34,7 @@ export const config = {
   // Optional group JID that receives the xlsx send report. Empty = no report.
   reportGroupId: process.env.REPORT_GROUP_ID || "",
   maxUploadMb: parseInt(process.env.MAX_UPLOAD_MB || "50", 10),
+  // Baileys' own logger. "fatal" keeps normal operation quiet; raise to
+  // "info"/"debug" to diagnose pairing or app-state/contact sync problems.
+  baileysLogLevel: process.env.BAILEYS_LOG_LEVEL || "fatal",
 };

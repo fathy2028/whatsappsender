@@ -553,7 +553,7 @@ app.post("/contacts/sync", checkusername, requireSock, async (req, res) => {
     await bailey[username].resyncContacts();
     // The resync resolves before the contacts.upsert events are all handled,
     // so give them a moment to land before reporting the new count.
-    await delay(2500);
+    await delay(6000);
     const counts = await countContacts(username);
     res.json({ status: "ok", ...counts });
   } catch (err) {
