@@ -2,13 +2,12 @@ import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
-import Autocomplete from "@mui/material/Autocomplete";
+import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
 import Button from "@mui/material/Button";
 import CheckBoxOutlineBlankRoundedIcon from "@mui/icons-material/CheckBoxOutlineBlankRounded";
 import CheckBoxRoundedIcon from "@mui/icons-material/CheckBoxRounded";
-import DoneAllRoundedIcon from "@mui/icons-material/DoneAllRounded";
 import ClearAllRoundedIcon from "@mui/icons-material/ClearAllRounded";
 import { tokens } from "../theme";
 
@@ -31,11 +30,25 @@ type RecipientPickerProps = {
   accent?: string;
   placeholder?: string;
   emptyText?: string;
+  /** Plural noun for the master toggle, e.g. "groups" / "contacts". */
+  itemNoun?: string;
 };
 
 /**
- * Multi-select recipient chooser with checkboxes, search, and bulk
- * select-all / clear actions. Used for both groups and contacts.
+ * Cap how many rows the dropdown renders at once. With ~1700 contacts an
+ * unbounded listbox makes every keystroke janky; "select all" still applies to
+ * every match, not just the rendered slice.
+ */
+const LISTBOX_LIMIT = 150;
+
+const filterOptions = createFilterOptions<Recipient>({
+  limit: LISTBOX_LIMIT,
+  stringify: (o) => `${o.name} ${o.detail ?? ""}`,
+});
+
+/**
+ * Multi-select recipient chooser with per-row checkboxes, search, and a master
+ * select-all toggle. Shared by the group and contact campaign pages.
  */
 function RecipientPicker({
   label,
@@ -45,28 +58,43 @@ function RecipientPicker({
   accent = tokens.emerald,
   placeholder = "Search…",
   emptyText = "Nothing to choose from yet",
+  itemNoun = "items",
 }: RecipientPickerProps) {
   const [query, setQuery] = useState("");
 
-  /** Options matching the current search box text, for "select all filtered". */
-  const filtered = useMemo(() => {
+  /** Set lookup — `value` can hold well over a thousand entries. */
+  const selectedIds = useMemo(() => new Set(value.map((v) => v.id)), [value]);
+
+  /** Options matching the search box, so the master toggle follows the filter. */
+  const matching = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return options;
     return options.filter(
       (o) =>
-        o.name.toLowerCase().includes(q) ||
-        (o.detail ?? "").toLowerCase().includes(q)
+        o.name.toLowerCase().includes(q) || (o.detail ?? "").toLowerCase().includes(q)
     );
   }, [options, query]);
 
-  const selectAll = () => {
+  const matchedSelected = useMemo(
+    () => matching.reduce((n, o) => (selectedIds.has(o.id) ? n + 1 : n), 0),
+    [matching, selectedIds]
+  );
+
+  const allMatchedSelected = matching.length > 0 && matchedSelected === matching.length;
+  const someMatchedSelected = matchedSelected > 0 && !allMatchedSelected;
+  const searching = query.trim().length > 0;
+
+  /** Tick or untick every option currently matching the search. */
+  const toggleAll = () => {
+    if (allMatchedSelected) {
+      const drop = new Set(matching.map((o) => o.id));
+      onChange(value.filter((v) => !drop.has(v.id)));
+      return;
+    }
     const merged = new Map(value.map((v) => [v.id, v]));
-    filtered.forEach((o) => merged.set(o.id, o));
+    matching.forEach((o) => merged.set(o.id, o));
     onChange([...merged.values()]);
   };
-
-  const allFilteredSelected =
-    filtered.length > 0 && filtered.every((o) => value.some((v) => v.id === o.id));
 
   return (
     <Box>
@@ -81,48 +109,96 @@ function RecipientPicker({
         }}
       >
         <Typography variant="overline">{label}</Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
-          <Chip
-            size="small"
-            label={`${value.length} selected`}
+        <Chip
+          size="small"
+          label={`${value.length} selected`}
+          sx={{
+            color: value.length ? accent : tokens.textMuted,
+            borderColor: value.length ? `${accent}66` : tokens.stroke,
+            background: value.length ? `${accent}1A` : tokens.surface,
+          }}
+        />
+      </Box>
+
+      {/* ---- master select-all bar ---- */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.5,
+          mb: 1.4,
+          pl: 0.5,
+          pr: 1.2,
+          py: 0.6,
+          borderRadius: "12px",
+          border: `1px solid ${allMatchedSelected ? `${accent}55` : tokens.stroke}`,
+          background: allMatchedSelected ? `${accent}12` : "rgba(255,255,255,.028)",
+          transition: "background .2s ease, border-color .2s ease",
+        }}
+      >
+        <Checkbox
+          checked={allMatchedSelected}
+          indeterminate={someMatchedSelected}
+          onChange={toggleAll}
+          disabled={matching.length === 0}
+          icon={<CheckBoxOutlineBlankRoundedIcon fontSize="small" />}
+          checkedIcon={<CheckBoxRoundedIcon fontSize="small" />}
+          inputProps={{ "aria-label": `Select all ${itemNoun}` }}
+          sx={{
+            color: tokens.textMuted,
+            "&.Mui-checked, &.MuiCheckbox-indeterminate": { color: accent },
+          }}
+        />
+        <Box
+          onClick={matching.length === 0 ? undefined : toggleAll}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            cursor: matching.length === 0 ? "default" : "pointer",
+            userSelect: "none",
+          }}
+        >
+          <Typography
             sx={{
-              color: value.length ? accent : tokens.textMuted,
-              borderColor: value.length ? `${accent}66` : tokens.stroke,
-              background: value.length ? `${accent}1A` : tokens.surface,
+              fontSize: "0.88rem",
+              fontWeight: 600,
+              color: matching.length === 0 ? tokens.textMuted : tokens.textPrimary,
             }}
-          />
-          <Button
-            size="small"
-            startIcon={<DoneAllRoundedIcon sx={{ fontSize: "0.95rem !important" }} />}
-            onClick={selectAll}
-            disabled={filtered.length === 0 || allFilteredSelected}
-            sx={{ fontSize: "0.76rem", py: 0.4 }}
           >
-            {query.trim() ? `Select ${filtered.length} shown` : "Select all"}
-          </Button>
-          <Button
-            size="small"
-            startIcon={<ClearAllRoundedIcon sx={{ fontSize: "0.95rem !important" }} />}
-            onClick={() => onChange([])}
-            disabled={value.length === 0}
-            sx={{ fontSize: "0.76rem", py: 0.4 }}
-          >
-            Clear
-          </Button>
+            {allMatchedSelected ? "Deselect" : "Select"} all{" "}
+            {searching ? `${matching.length} matching` : matching.length} {itemNoun}
+          </Typography>
+          {searching && (
+            <Typography sx={{ fontSize: "0.72rem", color: tokens.textMuted }}>
+              Applies to your current search only
+            </Typography>
+          )}
         </Box>
+
+        <Button
+          size="small"
+          startIcon={<ClearAllRoundedIcon sx={{ fontSize: "0.95rem !important" }} />}
+          onClick={() => onChange([])}
+          disabled={value.length === 0}
+          sx={{ fontSize: "0.76rem", py: 0.4, flexShrink: 0 }}
+        >
+          Clear
+        </Button>
       </Box>
 
       <Autocomplete
         multiple
         disableCloseOnSelect
         fullWidth
+        disableListWrap
         options={options}
         value={value}
+        filterOptions={filterOptions}
         onChange={(_, next) => onChange(next as Recipient[])}
         inputValue={query}
         onInputChange={(_, v, reason) => {
-          // Keep the typed query when picking an option, so you can tick
-          // several matches from one search without retyping it.
+          // Keep the typed query when picking an option, so several matches can
+          // be ticked from one search without retyping it.
           if (reason !== "reset") setQuery(v);
         }}
         isOptionEqualToValue={(a, b) => a.id === b.id}
@@ -207,6 +283,13 @@ function RecipientPicker({
           <TextField {...params} placeholder={value.length ? "" : placeholder} />
         )}
       />
+
+      {matching.length > LISTBOX_LIMIT && (
+        <Typography sx={{ mt: 0.9, fontSize: "0.74rem", color: tokens.textMuted }}>
+          Showing the first {LISTBOX_LIMIT} of {matching.length} — search to narrow the list. The
+          checkbox above still selects all {matching.length}.
+        </Typography>
+      )}
     </Box>
   );
 }

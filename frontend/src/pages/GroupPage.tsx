@@ -146,6 +146,7 @@ function GroupPage() {
         accent={ACCENT}
         placeholder="Search and tick the groups to send to…"
         emptyText="No groups found for this session"
+        itemNoun="groups"
       />
 
       <Divider sx={{ my: 3.4 }} />
@@ -200,6 +201,14 @@ function GroupPage() {
           <Typography sx={{ mt: 0.6, fontSize: "0.77rem", color: tokens.textMuted }}>
             Paced 60–120s apart to reduce ban risk — about {estimateRange(totalSends)}.
           </Typography>
+          {totalSends > 60 && (
+            <Typography
+              sx={{ mt: 0.9, fontSize: "0.77rem", color: tokens.amber, fontWeight: 600 }}
+            >
+              ⚠ That is a long run. It continues on the server even if you close the page, but
+              consider sending in smaller batches.
+            </Typography>
+          )}
         </Box>
       )}
 
