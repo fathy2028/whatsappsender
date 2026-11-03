@@ -1,5 +1,12 @@
 import { config } from "./config";
-import { AnyMessageContent, delay } from "baileys";
+import {
+  AnyMessageContent,
+  delay,
+  getBinaryNodeChild,
+  QueryIds,
+  S_WHATSAPP_NET,
+  XWAPaths,
+} from "baileys";
 import reader from "xlsx";
 import path from "path";
 import express from "express";
@@ -568,6 +575,52 @@ const readChannelMeta = (m: any) => {
   };
 };
 
+/**
+ * Create a channel and return WhatsApp's raw response.
+ *
+ * Baileys' own newsletterCreate (7.0.0-rc.9) creates the channel but then
+ * crashes reading `thread.picture.id`, because a brand-new channel has no
+ * picture (null). The channel exists at that point, yet its id is lost — so
+ * the same mex query is issued here and parsed with readChannelMeta instead.
+ */
+const createNewsletter = async (
+  sock: NonNullable<BaileysProvider["mysock"]>,
+  name: string,
+  description: string
+): Promise<unknown> => {
+  const result = await sock.query({
+    tag: "iq",
+    attrs: {
+      id: sock.generateMessageTag(),
+      type: "get",
+      to: S_WHATSAPP_NET,
+      xmlns: "w:mex",
+    },
+    content: [
+      {
+        tag: "query",
+        attrs: { query_id: QueryIds.CREATE },
+        content: Buffer.from(
+          JSON.stringify({
+            variables: { input: { name, description: description || null } },
+          }),
+          "utf-8"
+        ),
+      },
+    ],
+  });
+  const child = getBinaryNodeChild(result, "result");
+  const data = child?.content ? JSON.parse(child.content.toString()) : null;
+  if (data?.errors?.length) {
+    throw new Error(
+      data.errors.map((e: any) => e?.message || "Unknown error").join(", ")
+    );
+  }
+  const created = data?.data?.[XWAPaths.xwa2_newsletter_create];
+  if (!created) throw new Error("Unexpected response from WhatsApp");
+  return created;
+};
+
 app.get("/api/channels/:username", async (req, res) => {
   const username = req.params.username;
   if (!isValidUsername(username)) {
@@ -611,9 +664,7 @@ app.post("/api/channels/create", checkusername, requireSock, async (req, res) =>
 
   const sock = bailey[username].mysock!;
   try {
-    const meta = readChannelMeta(
-      await sock.newsletterCreate(name, description || undefined)
-    );
+    const meta = readChannelMeta(await createNewsletter(sock, name, description));
     if (!meta.jid) throw new Error("WhatsApp did not return a channel id");
     if (picture) {
       try {
