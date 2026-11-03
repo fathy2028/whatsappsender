@@ -7,6 +7,7 @@ import TableChartRoundedIcon from "@mui/icons-material/TableChartRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import ContactPhoneRoundedIcon from "@mui/icons-material/ContactPhoneRounded";
+import CampaignRoundedIcon from "@mui/icons-material/CampaignRounded";
 
 export type NavItem = {
   label: string;
@@ -90,5 +91,13 @@ export const navItems: NavItem[] = [
     icon: ContactPhoneRoundedIcon,
     blurb: "Tick people from your saved WhatsApp contacts",
     accent: "#22D3EE",
+  },
+  {
+    label: "Channels",
+    short: "Channels",
+    path: "channels",
+    icon: CampaignRoundedIcon,
+    blurb: "Create channels, post any media, invite numbers",
+    accent: "#8B5CF6",
   },
 ];

@@ -15,6 +15,13 @@ import {
   countContacts,
 } from "./contacts";
 import {
+  initChannelsTable,
+  saveChannel,
+  listChannels,
+  getChannel,
+  removeChannel,
+} from "./channels";
+import {
   BaileysProvider,
   bailey,
   qrs,
@@ -88,6 +95,7 @@ async function restoreSessions(): Promise<void> {
 
 initDb();
 initContactsTable();
+initChannelsTable();
 restoreSessions();
 
 /* ── WebSocket: QR delivery ─────────────────────────────────────────────── */
@@ -521,6 +529,243 @@ app.post("/campaign", checkusername, requireSock, async (req, res) => {
     }
   } catch (e) {
     console.error("campaign job error:", e);
+  } finally {
+    finishJob(job);
+  }
+});
+
+/* ── Channels (WhatsApp newsletters) ────────────────────────────────────── */
+
+const channelLink = (invite: string): string =>
+  `https://whatsapp.com/channel/${invite}`;
+
+/** Accepts a full channel link or a bare invite code. */
+const parseInviteCode = (input: unknown): string => {
+  const raw = String(input ?? "").trim();
+  const fromLink = raw.match(/channel\/([A-Za-z0-9]+)/);
+  if (fromLink) return fromLink[1];
+  return /^[A-Za-z0-9]+$/.test(raw) ? raw : "";
+};
+
+const isChannelJid = (jid: unknown): jid is string =>
+  typeof jid === "string" && jid.endsWith("@newsletter");
+
+/**
+ * newsletterCreate returns a flattened object, while newsletterMetadata returns
+ * the raw GraphQL shape ({ thread_metadata: { name: { text } } }). Read both.
+ */
+const readChannelMeta = (m: any) => {
+  const thread = m?.thread_metadata ?? {};
+  const text = (v: any): string =>
+    typeof v === "string" ? v : String(v?.text ?? "");
+  return {
+    jid: String(m?.id ?? ""),
+    name: text(m?.name ?? thread.name),
+    description: text(m?.description ?? thread.description),
+    invite: String(m?.invite ?? thread.invite ?? ""),
+    subscribers: Number(m?.subscribers ?? thread.subscribers_count) || 0,
+    role: String(m?.viewer_metadata?.role ?? ""),
+  };
+};
+
+app.get("/api/channels/:username", async (req, res) => {
+  const username = req.params.username;
+  if (!isValidUsername(username)) {
+    return res.status(400).json({ message: "Invalid username" });
+  }
+  try {
+    const channels = await listChannels(username);
+    const sock = bailey[username]?.mysock;
+    // Follower counts are live data, so fetch them best-effort; a channel that
+    // fails to load still shows up, just without a count.
+    const counts = await Promise.all(
+      channels.map(async (c) => {
+        if (!sock) return null;
+        try {
+          return readChannelMeta(await sock.newsletterMetadata("jid", c.jid))
+            .subscribers;
+        } catch {
+          return null;
+        }
+      })
+    );
+    res.json(
+      channels.map((c, i) => ({
+        ...c,
+        link: c.invite ? channelLink(c.invite) : "",
+        subscribers: counts[i],
+      }))
+    );
+  } catch (err) {
+    console.error("Error listing channels:", err);
+    res.status(500).json({ message: "Internal server error." });
+  }
+});
+
+app.post("/api/channels/create", checkusername, requireSock, async (req, res) => {
+  const username: string = req.body.username;
+  const name = String(req.body.name ?? "").trim();
+  const description = String(req.body.description ?? "").trim();
+  const picture = req.files?.picture as fileUpload.UploadedFile | undefined;
+  if (!name) return res.status(400).json({ message: "name is required." });
+
+  const sock = bailey[username].mysock!;
+  try {
+    const meta = readChannelMeta(
+      await sock.newsletterCreate(name, description || undefined)
+    );
+    if (!meta.jid) throw new Error("WhatsApp did not return a channel id");
+    if (picture) {
+      try {
+        await sock.newsletterUpdatePicture(meta.jid, picture.data);
+      } catch (e) {
+        // The channel exists either way; a failed picture shouldn't hide that.
+        console.error("Channel picture upload failed:", e);
+      }
+    }
+    await saveChannel(username, {
+      jid: meta.jid,
+      name: meta.name || name,
+      description: meta.description || description,
+      invite: meta.invite,
+    });
+    res.json({ status: "ok", jid: meta.jid, link: channelLink(meta.invite) });
+  } catch (err) {
+    console.error("Channel create failed:", err);
+    res
+      .status(500)
+      .json({ message: "Could not create the channel.", error: String(err) });
+  }
+});
+
+/** Add a channel created elsewhere (e.g. on the phone) by its invite link. */
+app.post("/api/channels/import", checkusername, requireSock, async (req, res) => {
+  const username: string = req.body.username;
+  const code = parseInviteCode(req.body.link);
+  if (!code) {
+    return res.status(400).json({ message: "A valid channel link is required." });
+  }
+  try {
+    const raw = await bailey[username].mysock!.newsletterMetadata("invite", code);
+    if (!raw) return res.status(404).json({ message: "Channel not found." });
+    const meta = readChannelMeta(raw);
+    // Only owners and admins can post; anything else would fail on every send.
+    if (meta.role && meta.role !== "OWNER" && meta.role !== "ADMIN") {
+      return res
+        .status(403)
+        .json({ message: "This account is not an admin of that channel." });
+    }
+    await saveChannel(username, {
+      jid: meta.jid,
+      name: meta.name,
+      description: meta.description,
+      invite: meta.invite || code,
+    });
+    res.json({ status: "ok", jid: meta.jid });
+  } catch (err) {
+    console.error("Channel import failed:", err);
+    res
+      .status(500)
+      .json({ message: "Could not load that channel.", error: String(err) });
+  }
+});
+
+app.post("/api/channels/remove", checkusername, async (req, res) => {
+  const username: string = req.body.username;
+  if (!isChannelJid(req.body.jid)) {
+    return res.status(400).json({ message: "jid is required." });
+  }
+  try {
+    await removeChannel(username, req.body.jid);
+    res.json({ status: "ok" });
+  } catch (err) {
+    console.error("Channel remove failed:", err);
+    res.status(500).json({ message: "Internal server error." });
+  }
+});
+
+/**
+ * Post text and/or any number of attachments to one channel. Each attachment
+ * is its own post. Channel posts go to followers in one shot, so there is no
+ * anti-ban pacing and the request waits for the result.
+ */
+app.post("/api/channels/post", checkusername, requireSock, async (req, res) => {
+  const username: string = req.body.username;
+  const jid = req.body.jid;
+  const message = String(req.body.message ?? "").trim();
+  const raw = req.files?.media;
+  const uploads: fileUpload.UploadedFile[] = !raw
+    ? []
+    : Array.isArray(raw)
+    ? raw
+    : [raw];
+
+  if (!isChannelJid(jid)) return res.status(400).json({ message: "jid is required." });
+  if (uploads.length === 0 && !message) {
+    return res
+      .status(400)
+      .json({ message: "a message or at least one attachment is required" });
+  }
+
+  const parts =
+    uploads.length > 0
+      ? uploads.map((f) => contentForUpload(f, message))
+      : [{ content: { text: message } as AnyMessageContent, label: message }];
+
+  let sent = 0;
+  const errors: string[] = [];
+  for (const part of parts) {
+    try {
+      await bailey[username].mysock!.sendMessage(jid, part.content);
+      sent++;
+      await logMessage(username, jid, true, part.label, "channel");
+    } catch (e) {
+      errors.push(`${part.label}: ${String(e)}`);
+      console.error(`channel post failed for ${jid}:`, e);
+    }
+    // Keep multi-attachment posts in order on the channel.
+    if (parts.length > 1) await delay(1500);
+  }
+  res.status(sent > 0 ? 200 : 500).json({ sent, failed: errors.length, errors });
+});
+
+/**
+ * WhatsApp has no way to add people to a channel — they must follow it. The
+ * closest equivalent is sending each number the channel link, paced like any
+ * other bulk send.
+ */
+app.post("/api/channels/invite", checkusername, requireSock, async (req, res) => {
+  const username: string = req.body.username;
+  const jid = req.body.jid;
+  // Normalise before de-duplicating so "010…" and "2010…" count once.
+  const numbers = [
+    ...new Set(parseNumbers(req.body.numbers).map((n) => normalizePhoneNumber(n))),
+  ].filter(Boolean);
+  const note = String(req.body.message ?? "").trim();
+  if (!isChannelJid(jid)) return res.status(400).json({ message: "jid is required." });
+  if (numbers.length === 0) {
+    return res.status(400).json({ message: "numbers is required." });
+  }
+
+  const channel = await getChannel(username, jid).catch(() => undefined);
+  if (!channel?.invite) {
+    return res.status(404).json({ message: "Channel link not found." });
+  }
+  const text = note
+    ? `${note}\n\n${channelLink(channel.invite)}`
+    : channelLink(channel.invite);
+
+  const job = createJob("channel-invite", username, numbers.length);
+  res.send({ status: "ok", jobId: job.id });
+
+  const provider = bailey[username];
+  try {
+    for (let i = 0; i < numbers.length; i++) {
+      await sendBulkItem(provider, job, numbers[i], { text }, text);
+      await delayBetween(i, numbers.length);
+    }
+  } catch (e) {
+    console.error("channel invite job error:", e);
   } finally {
     finishJob(job);
   }

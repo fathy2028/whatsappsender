@@ -21,7 +21,8 @@ export async function initDb(): Promise<void> {
       await pool.query(
         "CREATE INDEX IF NOT EXISTS messages_username_idx ON messages (username);"
       );
-      // 'direct' = sent to a phone number, 'group' = sent to a group jid.
+      // 'direct' = sent to a phone number, 'group' = sent to a group jid,
+      // 'channel' = posted to a WhatsApp Channel (newsletter).
       // Existing rows predate group sending, so 'direct' is the right default.
       await pool.query(
         "ALTER TABLE messages ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'direct';"
@@ -36,7 +37,7 @@ export async function initDb(): Promise<void> {
   console.error("Postgres unavailable — message logging is disabled until it recovers");
 }
 
-export type MessageKind = "direct" | "group";
+export type MessageKind = "direct" | "group" | "channel";
 
 export async function insertMessage(
   username: string,
@@ -73,7 +74,7 @@ export async function getSummary(username: string): Promise<{
   return {
     totalMessages: rows[0].total,
     totalGroupMessages: rows[0].group_total,
-    // Contact tallies are meaningless for group jids, so they exclude them.
+    // Contact tallies are meaningless for group/channel jids, so they exclude them.
     totalUsersUniqueWhatsAppUsers: rows[0].on_wa,
     totalUsersUniqueNonWhatsAppUsers: rows[0].off_wa,
   };

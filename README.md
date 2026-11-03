@@ -37,6 +37,7 @@ Multiple WhatsApp accounts ("sessions") can be linked at once, each identified b
 | One-off message to a single number | `/phone/:username` |
 | **Group campaigns** — multi-select groups, any media, multiple attachments | `/group/:username` |
 | **Contact campaigns** — multi-select from your synced WhatsApp address book | `/contacts/:username` |
+| **Channels** — create WhatsApp Channels, post text or any media, invite numbers in bulk | `/channels/:username` |
 | Live campaign progress with ETA, sent/unreachable/failed counts | in-page, polls `/jobs/:id` |
 
 Both campaign pages support **select-all** (scoped to the current search), per-row checkboxes,
@@ -196,6 +197,20 @@ Group JIDs skip the `onWhatsApp()` reachability check (it does not apply to grou
 phone numbers still get it. The endpoint responds **immediately** with a `jobId`; the UI then
 polls `GET /jobs/:id` for progress.
 
+### Channels
+
+WhatsApp Channels (newsletters) are one-to-many: you post once and every follower sees it.
+**WhatsApp does not allow adding people to a channel** — not even the owner can. People have
+to follow it themselves. "Invite numbers" is therefore a normal paced bulk send of a message
+containing the channel link; recipients tap it and press **Follow**.
+
+Channel posts skip the typing indicator and the 60–120s pacing (they are a single post, not
+per-recipient messages). Media is uploaded unencrypted, as WhatsApp requires for channels;
+Baileys handles that automatically for `@newsletter` jids.
+
+If **New channel** fails, the account may not have accepted WhatsApp's Channels terms yet.
+Create a channel once on the phone, then use **Add existing** with its link.
+
 ### Contact sync
 
 WhatsApp does not expose a "fetch all contacts" API. Contacts arrive as events
@@ -228,6 +243,7 @@ sends an empty delta. See [Known issues](#known-issues-and-gotchas).
 | `/phone/:username` | Single message |
 | `/group/:username` | Group campaign (multi-select, any media) |
 | `/contacts/:username` | Contact campaign (multi-select, any media) |
+| `/channels/:username` | WhatsApp Channels: create, post, invite |
 
 ---
 
@@ -253,6 +269,17 @@ Unless noted, requests are JSON and include `username`. File uploads are `multip
 | `POST` | `/api/contacts/sync` | Forces a full address-book resync |
 
 > Namespaced under `/api` so it does not shadow the `/contacts/:username` **page** route.
+
+### Channels
+
+| Method | Path | Body | Notes |
+|---|---|---|---|
+| `GET` | `/api/channels/:username` | — | Stored channels with `link` and live `subscribers` (`null` if unreachable) |
+| `POST` | `/api/channels/create` | `username`, `name`, `description`, `picture` (optional file) | Creates the channel on WhatsApp |
+| `POST` | `/api/channels/import` | `username`, `link` | Adds a channel you own/admin by its invite link |
+| `POST` | `/api/channels/remove` | `username`, `jid` | Forgets it locally; the channel stays on WhatsApp |
+| `POST` | `/api/channels/post` | `username`, `jid`, `message`, `media` (0..n files) | One post per attachment; waits for the result, no pacing |
+| `POST` | `/api/channels/invite` | `username`, `jid`, `numbers[]`, `message` | Sends each number the channel link. Paced job, returns `{ jobId }` |
 
 ### Sending (legacy, per-type)
 
@@ -319,6 +346,20 @@ from the on/not-on-WhatsApp **contact** tallies, which are meaningless for group
 
 A partial `contacts.update` never overwrites a stored `name` with null.
 
+### Postgres — `channels`
+
+| Column | Type | Notes |
+|---|---|---|
+| `username` | `TEXT` | Part of the primary key |
+| `jid` | `TEXT` | `…@newsletter`, part of the primary key |
+| `name` | `TEXT` | |
+| `description` | `TEXT` | |
+| `invite` | `TEXT` | Code for `https://whatsapp.com/channel/<invite>` |
+| `created_at` | `TIMESTAMPTZ` | |
+
+Baileys has no "list my channels" call, so the app remembers the channels it created or imported.
+Channel posts are logged to `messages` with `kind = 'channel'`.
+
 ### MySQL — `auth`
 
 Managed by `mysql-baileys`: credentials, signal keys and app-state sync keys, keyed by session.
@@ -332,6 +373,7 @@ backend/
   index.ts        Express app, routes, WebSocket, campaign loop
   baileys.ts      BaileysProvider: socket lifecycle, QR, contact events
   contacts.ts     Postgres contact store
+  channels.ts     Postgres list of managed WhatsApp Channels
   authFix.ts      Workaround for a mysql-baileys decryption bug (see below)
   db.ts           Postgres message log + dashboard summary
   jobs.ts         In-memory job tracking (last 100)
