@@ -40,7 +40,10 @@ function ScanPage() {
     onMessage: (event) => {
       const data = JSON.parse(event.data);
       if (data.type === "qr-code") {
-        setQR(data.message);
+        // Only swap in real QR images; anything else keeps the last code on screen.
+        if (typeof data.message === "string" && data.message.startsWith("data:image")) {
+          setQR(data.message);
+        }
       } else if (data.type === "authenticated") {
         setIsAuthenticated(true);
       }

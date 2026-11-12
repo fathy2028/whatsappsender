@@ -43,7 +43,6 @@ export const sendToUser = (username: string, payload: object): void => {
 
 export class BaileysProvider {
   name: string;
-  qrRetry = 0;
   mysock: ReturnType<typeof makeWASocket> | undefined;
   private removeCredsGlobal: (() => Promise<void>) | undefined;
 
@@ -131,22 +130,15 @@ export class BaileysProvider {
 
           if (connection === "open") {
             console.log(`${this.name} is : ready`);
-            this.qrRetry = 0;
             delete qrs[this.name];
             this.mysock = sock;
             sendToUser(this.name, { type: "authenticated" });
           }
 
+          // WhatsApp rotates the QR every ~20s; when a socket's QR refs run out
+          // it closes with a timeout and the reconnect above emits a fresh one,
+          // so the page always has a scannable code until the device links.
           if (qr) {
-            this.qrRetry++;
-            if (this.qrRetry >= 3) {
-              qrs[this.name] = "";
-              console.log(`${this.name}: QR retries exhausted, closing socket`);
-              sendToUser(this.name, { type: "qr-code", message: "Bye" });
-              sock.end(undefined);
-              removeProvider(this.name);
-              return;
-            }
             const url = await QRCode.toDataURL(qr);
             qrs[this.name] = url;
             sendToUser(this.name, { type: "qr-code", message: url });
@@ -202,7 +194,3 @@ export const bailey: Record<string, BaileysProvider> = {};
 
 export const getOrCreateProvider = (username: string): BaileysProvider =>
   (bailey[username] ??= new BaileysProvider(username));
-
-export const removeProvider = (name: string): void => {
-  delete bailey[name];
-};
